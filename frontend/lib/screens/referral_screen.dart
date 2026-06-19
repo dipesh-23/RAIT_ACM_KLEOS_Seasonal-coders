@@ -1,13 +1,94 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
 import '../app_theme.dart';
 import '../providers/triage_provider.dart';
 import '../models/session_model.dart';
 import 'session_start_screen.dart';
 
-class ReferralScreen extends StatelessWidget {
+class ReferralScreen extends StatefulWidget {
   const ReferralScreen({super.key});
+
+  @override
+  State<ReferralScreen> createState() => _ReferralScreenState();
+}
+
+class _ReferralScreenState extends State<ReferralScreen> {
+  final GlobalKey _globalKey = GlobalKey();
+  bool _isSharing = false;
+
+  Future<void> _sharePdf() async {
+    if (_isSharing) return;
+    setState(() {
+      _isSharing = true;
+    });
+
+    try {
+      final boundary = _globalKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception("Repaint boundary not found");
+      }
+
+      // Capture image with high resolution pixel ratio
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw Exception("Failed to convert image to bytes");
+      }
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      // Create PDF
+      final pdf = pw.Document();
+      final pdfImage = pw.MemoryImage(pngBytes);
+      
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(20),
+          build: (pw.Context context) {
+            return pw.Center(
+              child: pw.Image(pdfImage, fit: pw.BoxFit.contain),
+            );
+          },
+        ),
+      );
+
+      // Save PDF to temp directory
+      final output = await getTemporaryDirectory();
+      final file = File("${output.path}/referral_slip_${DateTime.now().millisecondsSinceEpoch}.pdf");
+      await file.writeAsBytes(await pdf.save());
+
+      // Share PDF using share_plus
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'ASHA Referral Slip',
+      );
+    } catch (e) {
+      debugPrint("Error sharing PDF: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('शेयर करने में त्रुटि: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,10 +111,24 @@ class ReferralScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.share_rounded, color: AppTheme.primary),
-            onPressed: () {/* TODO: Share PDF */},
-          ),
+          _isSharing
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                      ),
+                    ),
+                  ),
+                )
+              : IconButton(
+                  icon: Icon(Icons.share_rounded, color: AppTheme.primary),
+                  onPressed: _sharePdf,
+                ),
         ],
       ),
       body: SingleChildScrollView(
@@ -41,116 +136,119 @@ class ReferralScreen extends StatelessWidget {
         child: Column(
           children: [
             // ── Referral Card ──
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppTheme.bgWhite,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: AppTheme.cardShadow,
-                border: Border.all(
-                    color: AppTheme.triageRed.withOpacity(0.2), width: 1.5),
-              ),
-              child: Column(
-                children: [
-                  // Red Header
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.redGradient,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(18),
-                        topRight: Radius.circular(18),
+            RepaintBoundary(
+              key: _globalKey,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppTheme.bgWhite,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: AppTheme.cardShadow,
+                  border: Border.all(
+                      color: AppTheme.triageRed.withOpacity(0.2), width: 1.5),
+                ),
+                child: Column(
+                  children: [
+                    // Red Header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.redGradient,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.local_hospital_rounded,
+                              color: Colors.white, size: 36),
+                          const SizedBox(height: 8),
+                          Text('ASHA तत्काल रेफरल',
+                              style: GoogleFonts.poppins(
+                                  color: Colors.white, fontSize: 18,
+                                  fontWeight: FontWeight.w700)),
+                          Text('Urgent Health Referral Slip',
+                              style: GoogleFonts.poppins(
+                                  color: Colors.white70, fontSize: 12)),
+                        ],
                       ),
                     ),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.local_hospital_rounded,
-                            color: Colors.white, size: 36),
-                        const SizedBox(height: 8),
-                        Text('ASHA तत्काल रेफरल',
-                            style: GoogleFonts.poppins(
-                                color: Colors.white, fontSize: 18,
-                                fontWeight: FontWeight.w700)),
-                        Text('Urgent Health Referral Slip',
-                            style: GoogleFonts.poppins(
-                                color: Colors.white70, fontSize: 12)),
-                      ],
-                    ),
-                  ),
 
-                  // Info Rows
-                  Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      children: [
-                        _infoRow('रेफरल कोड (Session Code)',
-                            session?.sessionCode ?? '--'),
-                        _divider(),
-                        _infoRow('ASHA कार्यकर्ता',
-                            session?.ashaWorkerName ?? 'ASHA Worker'),
-                        _divider(),
-                        _infoRow('मरीज आयु वर्ग',
-                            session?.patientAgeGroup?.labelHi ?? '--'),
-                        _divider(),
-                        _infoRow('लक्षण अवधि',
-                            session?.symptomDuration?.labelHi ?? '--'),
-                        _divider(),
-                        _infoRow('ट्राइएज स्थिति',
-                            result?.categoryLabel ?? 'गंभीर (Red)'),
-                        _divider(),
-                        _infoRow('दिनांक',
-                            '${now.day}/${now.month}/${now.year}'),
-                        _divider(),
-                        _infoRow('समय',
-                            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppTheme.triageRed.withOpacity(0.07),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: AppTheme.triageRed.withOpacity(0.25)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('लक्षण / Symptoms (Confirmed Only):',
-                                  style: GoogleFonts.poppins(
-                                      color: AppTheme.triageRed, fontSize: 12,
-                                      fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 6),
-                              Builder(
-                                builder: (context) {
-                                  String symptomsText = 'कोई लक्षण नहीं';
-                                  
-                                  // The result.matchedSymptoms has the list of confirmed concept hindiLabels (or reasons) from triage engine
-                                  if (result != null && result.matchedSymptoms.isNotEmpty) {
-                                    symptomsText = result.matchedSymptoms.join(', ');
-                                  }
-                                  
-                                  return Text(
-                                    symptomsText,
+                    // Info Rows
+                    Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        children: [
+                          _infoRow('रेफरल कोड (Session Code)',
+                              session?.sessionCode ?? '--'),
+                          _divider(),
+                          _infoRow('ASHA कार्यकर्ता',
+                              session?.ashaWorkerName ?? 'ASHA Worker'),
+                          _divider(),
+                          _infoRow('मरीज आयु वर्ग',
+                              session?.patientAgeGroup?.labelHi ?? '--'),
+                          _divider(),
+                          _infoRow('लक्षण अवधि',
+                              session?.symptomDuration?.labelHi ?? '--'),
+                          _divider(),
+                          _infoRow('ट्राइएज स्थिति',
+                              result?.categoryLabel ?? 'गंभीर (Red)'),
+                          _divider(),
+                          _infoRow('दिनांक',
+                              '${now.day}/${now.month}/${now.year}'),
+                          _divider(),
+                          _infoRow('समय',
+                              '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppTheme.triageRed.withOpacity(0.07),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color: AppTheme.triageRed.withOpacity(0.25)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('लक्षण / Symptoms (Confirmed Only):',
                                     style: GoogleFonts.poppins(
-                                        color: AppTheme.textDark, fontSize: 13,
-                                        height: 1.5),
-                                  );
-                                }
-                              ),
-                            ],
+                                        color: AppTheme.triageRed, fontSize: 12,
+                                        fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 6),
+                                Builder(
+                                  builder: (context) {
+                                    String symptomsText = 'कोई लक्षण नहीं';
+                                    
+                                    // The result.matchedSymptoms has the list of confirmed concept hindiLabels (or reasons) from triage engine
+                                    if (result != null && result.matchedSymptoms.isNotEmpty) {
+                                      symptomsText = result.matchedSymptoms.join(', ');
+                                    }
+                                    
+                                    return Text(
+                                      symptomsText,
+                                      style: GoogleFonts.poppins(
+                                          color: AppTheme.textDark, fontSize: 13,
+                                          height: 1.5),
+                                    );
+                                  }
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text('सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                                color: AppTheme.textMedium, fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ],
+                          const SizedBox(height: 16),
+                          Text('सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                  color: AppTheme.textMedium, fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 

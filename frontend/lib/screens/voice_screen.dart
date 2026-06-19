@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:math' as Math;
 import '../app_theme.dart';
 import '../providers/triage_provider.dart';
 import '../services/stt_service.dart';
@@ -25,17 +26,20 @@ class _VoiceScreenState extends State<VoiceScreen>
   bool _isRecording = false;
   StreamSubscription<String>? _sttSub;
 
-
-
   @override
   void initState() {
     super.initState();
-    _pulseCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
-    _waveCtrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 2000))..repeat();
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.18)
-        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _waveCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.18).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -71,7 +75,8 @@ class _VoiceScreenState extends State<VoiceScreen>
     if (_liveText.isEmpty) return;
     context.read<TriageProvider>().updateTranscription(_liveText);
     Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const TranscriptionScreen()));
+      MaterialPageRoute(builder: (_) => const TranscriptionScreen()),
+    );
   }
 
   void _retry() {
@@ -87,11 +92,11 @@ class _VoiceScreenState extends State<VoiceScreen>
   Widget build(BuildContext context) {
     final lang = context.watch<TriageProvider>().selectedLanguage;
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D1A),
+      backgroundColor: const Color(0xFFF8FAFC), // glare-reducing light background
       body: SafeArea(
         child: Column(
           children: [
-            // ── App Bar ──
+            // ── Header ──
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
@@ -99,41 +104,62 @@ class _VoiceScreenState extends State<VoiceScreen>
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Container(
-                      width: 40, height: 40,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: AppTheme.primary.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white, size: 18),
+                          color: AppTheme.primary, size: 18),
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Text(AppStrings.get('voice_screen_title', lang),
+                  Expanded(
+                    child: Text(
+                      AppStrings.get('voice_screen_title', lang),
                       style: GoogleFonts.poppins(
-                          color: Colors.white, fontSize: 18,
-                          fontWeight: FontWeight.w700)),
+                        color: AppTheme.textDark,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  // Top dashboard language toggle
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButton<String>(
+                      value: lang,
+                      underline: const SizedBox(),
+                      icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 16),
+                      style: GoogleFonts.poppins(
+                          color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600),
+                      items: const [
+                        DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
+                        DropdownMenuItem(value: 'mr', child: Text('मराठी')),
+                        DropdownMenuItem(value: 'en', child: Text('English')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          context.read<TriageProvider>().setLanguage(val);
+                        }
+                      },
+                    ),
+                  ),
                 ],
               ),
             ),
 
-            // ── Center Section ──
+            // ── Center Focus Section ──
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Instruction text
-                  Text(AppStrings.get('speak_instruction', lang), style: GoogleFonts.poppins(
-                      color: Colors.white, fontSize: 28,
-                      fontWeight: FontWeight.w700)),
-                  Text(AppStrings.get('describe_symptoms', lang),
-                      style: GoogleFonts.poppins(
-                          color: Colors.white70, fontSize: 18,
-                          fontWeight: FontWeight.w400)),
-
-                  const SizedBox(height: 50),
-
-                  // Pulse Mic Button
+                  // Prominent circular white mic button in subtle glow container
                   GestureDetector(
                     onTap: _toggleRecording,
                     child: AnimatedBuilder(
@@ -142,47 +168,49 @@ class _VoiceScreenState extends State<VoiceScreen>
                         return Stack(
                           alignment: Alignment.center,
                           children: [
-                            if (_isRecording) ...[
-                              // Outer rings
-                              Container(
-                                width: 160 * _pulseAnim.value,
-                                height: 160 * _pulseAnim.value,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppTheme.primary.withOpacity(0.12),
-                                ),
-                              ),
-                              Container(
-                                width: 130 * _pulseAnim.value,
-                                height: 130 * _pulseAnim.value,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppTheme.primary.withOpacity(0.18),
-                                ),
-                              ),
-                            ],
-                            // Main button
+                            // Soft, subtle glow container
                             Container(
-                              width: 100, height: 100,
+                              width: 140 * (_isRecording ? _pulseAnim.value : 1.0),
+                              height: 140 * (_isRecording ? _pulseAnim.value : 1.0),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: _isRecording
-                                    ? const LinearGradient(
-                                        colors: [Color(0xFF5B4FCF), Color(0xFF9B8FFF)])
-                                    : const LinearGradient(
-                                        colors: [Color(0xFF333355), Color(0xFF222244)]),
-                                boxShadow: _isRecording ? [
+                                color: AppTheme.primary.withOpacity(0.06),
+                              ),
+                            ),
+                            Container(
+                              width: 116 * (_isRecording ? _pulseAnim.value : 1.0),
+                              height: 116 * (_isRecording ? _pulseAnim.value : 1.0),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppTheme.primary.withOpacity(0.09),
+                              ),
+                            ),
+                            // Circular white microphone action button (minimum 96x96 px)
+                            Container(
+                              width: 96,
+                              height: 96,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primary.withOpacity(0.5),
-                                    blurRadius: 30, spreadRadius: 5,
+                                    color: AppTheme.primary.withOpacity(0.12),
+                                    blurRadius: 15,
+                                    spreadRadius: 2,
                                   ),
-                                ] : [],
+                                  if (_isRecording)
+                                    BoxShadow(
+                                      color: AppTheme.primary.withOpacity(0.24),
+                                      blurRadius: 25,
+                                      spreadRadius: 3,
+                                    ),
+                                ],
                               ),
                               child: Icon(
-                                _isRecording
-                                    ? Icons.stop_rounded
-                                    : Icons.mic_rounded,
-                                color: Colors.white, size: 44),
+                                _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                                color: AppTheme.primary,
+                                size: 40,
+                              ),
                             ),
                           ],
                         );
@@ -190,49 +218,102 @@ class _VoiceScreenState extends State<VoiceScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 32),
+
+                  // Headline instructions: "बोलिए / Talk / सांगा" (at least 24sp)
                   Text(
-                    _isRecording ? AppStrings.get('listening', lang) : AppStrings.get('press_mic', lang),
+                    "बोलिए / Talk / सांगा",
                     style: GoogleFonts.poppins(
-                        color: _isRecording ? AppTheme.primaryLight : Colors.white38,
-                        fontSize: 13, fontWeight: FontWeight.w500),
+                      color: AppTheme.textDark,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _isRecording
+                        ? AppStrings.get('listening', lang)
+                        : AppStrings.get('press_mic', lang),
+                    style: GoogleFonts.poppins(
+                      color: _isRecording ? AppTheme.primary : AppTheme.textLight,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Dynamic multi-colored Bezier audio visualization curve
+                  Container(
+                    width: double.infinity,
+                    height: 80,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: AnimatedBuilder(
+                      animation: _waveCtrl,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: WaveformPainter(
+                            animationValue: _waveCtrl.value,
+                            isRecording: _isRecording,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // ── Live Transcription Panel ──
+            // ── Transcription Box ──
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: AppTheme.cardShadow,
+                border: Border.all(
+                  color: AppTheme.primary.withOpacity(0.08),
+                  width: 1.5,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.graphic_eq_rounded,
-                          color: AppTheme.primaryLight, size: 16),
-                      const SizedBox(width: 6),
-                      Text(AppStrings.get('live_transcription', lang),
-                          style: GoogleFonts.poppins(
-                              color: AppTheme.primaryLight, fontSize: 12,
-                              fontWeight: FontWeight.w600)),
+                      Icon(
+                        Icons.graphic_eq_rounded,
+                        color: AppTheme.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        AppStrings.get('live_transcription', lang),
+                        style: GoogleFonts.poppins(
+                          color: AppTheme.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
-                    constraints: const BoxConstraints(minHeight: 60),
+                    constraints: const BoxConstraints(minHeight: 70),
                     child: _liveText.isEmpty
-                        ? Text(AppStrings.get('words_placeholder', lang),
+                        ? Text(
+                            "पांच साल का बच्चा, दो दिन से तेज बुखार...",
                             style: GoogleFonts.poppins(
-                                color: Colors.white24, fontSize: 14,
-                                fontStyle: FontStyle.italic))
+                              color: AppTheme.textLight.withOpacity(0.6),
+                              fontSize: 16,
+                              fontStyle: FontStyle.italic,
+                              height: 1.5,
+                            ),
+                          )
                         : RichText(
                             text: TextSpan(
                               children: _buildHighlightedText(_liveText),
@@ -243,7 +324,7 @@ class _VoiceScreenState extends State<VoiceScreen>
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // ── Action Buttons ──
             Padding(
@@ -254,15 +335,23 @@ class _VoiceScreenState extends State<VoiceScreen>
                     child: OutlinedButton.icon(
                       onPressed: _retry,
                       icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text(AppStrings.get('rerecord', lang),
-                          style: GoogleFonts.poppins(fontSize: 14,
-                              fontWeight: FontWeight.w600)),
+                      label: Text(
+                        AppStrings.get('rerecord', lang),
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: AppTheme.textMedium,
+                        side: BorderSide(
+                          color: AppTheme.borderColor,
+                          width: 1.5,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
                   ),
@@ -271,14 +360,19 @@ class _VoiceScreenState extends State<VoiceScreen>
                     child: ElevatedButton.icon(
                       onPressed: _liveText.isNotEmpty ? _proceed : null,
                       icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                      label: Text(AppStrings.get('continue_btn', lang),
-                          style: GoogleFonts.poppins(fontSize: 14,
-                              fontWeight: FontWeight.w600)),
+                      label: Text(
+                        AppStrings.get('continue_btn', lang),
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
                   ),
@@ -300,11 +394,104 @@ class _VoiceScreenState extends State<VoiceScreen>
       return TextSpan(
         text: '$w ',
         style: GoogleFonts.poppins(
-          color: isUrgent ? const Color(0xFFFF8A80) : Colors.white,
-          fontSize: 15,
-          fontWeight: isUrgent ? FontWeight.w600 : FontWeight.w400,
+          color: isUrgent ? const Color(0xffD32F2F) : AppTheme.textDark,
+          fontSize: 16,
+          fontWeight: isUrgent ? FontWeight.bold : FontWeight.w500,
         ),
       );
     }).toList();
+  }
+}
+
+// ── Custom Waveform Painter ──
+class WaveformPainter extends CustomPainter {
+  final double animationValue;
+  final bool isRecording;
+
+  WaveformPainter({required this.animationValue, required this.isRecording});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint1 = Paint()
+      ..shader = LinearGradient(
+        colors: const [
+          Color(0xffD32F2F), // crimson red
+          Color(0xffF9A825), // amber yellow
+          Color(0xff388E3C), // emerald green
+          Color(0xff1565C0), // cobalt blue
+        ],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+
+    final path1 = Path();
+    final width = size.width;
+    final height = size.height;
+    final midY = height / 2;
+
+    path1.moveTo(0, midY);
+
+    if (isRecording) {
+      for (double x = 0; x <= width; x += 1) {
+        final wave1 = Math.sin((x / width * 3 * Math.pi) + animationValue * 2 * Math.pi) * 18;
+        final wave2 = Math.cos((x / width * 5 * Math.pi) - animationValue * 4 * Math.pi) * 8;
+        final envelope = Math.sin(x / width * Math.pi);
+        final y = midY + (wave1 + wave2) * envelope;
+        path1.lineTo(x, y);
+      }
+    } else {
+      for (double x = 0; x <= width; x += 1) {
+        final envelope = Math.sin(x / width * Math.pi);
+        final y = midY + Math.sin((x / width * 2 * Math.pi) + animationValue * 2 * Math.pi) * 2 * envelope;
+        path1.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path1, paint1);
+
+    // Second overlapping wave for visual depth
+    final paint2 = Paint()
+      ..shader = LinearGradient(
+        colors: const [
+          Color(0xff1565C0), // cobalt blue
+          Color(0xff388E3C), // emerald green
+          Color(0xffF9A825), // amber yellow
+          Color(0xffD32F2F), // crimson red
+        ],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final path2 = Path();
+    path2.moveTo(0, midY);
+
+    if (isRecording) {
+      for (double x = 0; x <= width; x += 1) {
+        final wave1 = Math.cos((x / width * 4 * Math.pi) - animationValue * 2 * Math.pi) * 12;
+        final wave2 = Math.sin((x / width * 6 * Math.pi) + animationValue * 3 * Math.pi) * 6;
+        final envelope = Math.sin(x / width * Math.pi);
+        final y = midY + (wave1 + wave2) * envelope;
+        path2.lineTo(x, y);
+      }
+    } else {
+      for (double x = 0; x <= width; x += 1) {
+        final envelope = Math.sin(x / width * Math.pi);
+        final y = midY + Math.cos((x / width * 2 * Math.pi) - animationValue * 2 * Math.pi) * 1 * envelope;
+        path2.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path2, paint2);
+  }
+
+  @override
+  bool shouldRepaint(covariant WaveformPainter oldDelegate) {
+    return oldDelegate.animationValue != animationValue || oldDelegate.isRecording != isRecording;
   }
 }

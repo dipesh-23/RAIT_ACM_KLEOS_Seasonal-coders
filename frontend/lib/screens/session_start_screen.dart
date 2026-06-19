@@ -299,6 +299,31 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                     fontSize: 18, fontWeight: FontWeight.w700,
                     color: AppTheme.textDark)),
           ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButton<String>(
+              value: lang,
+              underline: const SizedBox(),
+              icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 18),
+              style: GoogleFonts.poppins(
+                  color: AppTheme.primary, fontSize: 13, fontWeight: FontWeight.w600),
+              items: const [
+                DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
+                DropdownMenuItem(value: 'mr', child: Text('मराठी')),
+                DropdownMenuItem(value: 'en', child: Text('English')),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  context.read<TriageProvider>().setLanguage(val);
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
           GestureDetector(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ProfileScreen()),
