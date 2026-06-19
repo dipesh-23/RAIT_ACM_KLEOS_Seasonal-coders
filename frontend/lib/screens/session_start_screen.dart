@@ -9,6 +9,9 @@ import '../services/onboarding_service.dart';
 import '../utils/app_strings.dart';
 import 'voice_screen.dart';
 import 'profile_screen.dart';
+import 'qr_sync_screen.dart';
+import 'epidemic_alert_screen.dart';
+import '../main.dart';
 
 class SessionStartScreen extends StatefulWidget {
   const SessionStartScreen({super.key});
@@ -202,6 +205,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
     final lang = context.watch<TriageProvider>().selectedLanguage;
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: Column(
           children: [
@@ -291,7 +295,12 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       child: Row(
         children: [
-          Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 26),
+          Builder(
+            builder: (context) => IconButton(
+              icon: Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 26),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(AppStrings.get('asha_triage', lang),
@@ -299,28 +308,10 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                     fontSize: 18, fontWeight: FontWeight.w700,
                     color: AppTheme.textDark)),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButton<String>(
-              value: lang,
-              underline: const SizedBox(),
-              icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 18),
-              style: GoogleFonts.poppins(
-                  color: AppTheme.primary, fontSize: 13, fontWeight: FontWeight.w600),
-              items: const [
-                DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
-                DropdownMenuItem(value: 'mr', child: Text('मराठी')),
-                DropdownMenuItem(value: 'en', child: Text('English')),
-              ],
-              onChanged: (val) {
-                if (val != null) {
-                  context.read<TriageProvider>().setLanguage(val);
-                }
-              },
+          IconButton(
+            icon: const Icon(Icons.warning_amber_rounded, color: AppTheme.triageRed, size: 24),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const EpidemicAlertScreen()),
             ),
           ),
           const SizedBox(width: 12),

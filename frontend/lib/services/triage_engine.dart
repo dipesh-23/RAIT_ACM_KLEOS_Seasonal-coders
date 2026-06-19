@@ -415,6 +415,7 @@ class TriageEngine {
     required String transcribedText,
     required String ageGroup,
     required String duration,
+    required String lang,
   }) {
     // ── Safety-net fast path ─────────────────────────────────────────────────
     if (safetyNetTriggered) {
@@ -423,7 +424,7 @@ class TriageEngine {
         category: TriageCategory.red,
         transcribedText: transcribedText,
         confidenceScore: 1.0,
-        matchedSymptoms: ['मरीज की हालत गंभीर (Worker Flagged)'],
+        matchedSymptoms: [lang == 'hi' ? 'मरीज की हालत गंभीर' : 'Patient Condition Critical'],
         recommendation: 'Immediate referral required.',
         recommendationHindi: 'तुरंत अस्पताल भेजें — यह गंभीर मामला है।',
         requiresReferral: true,
@@ -440,14 +441,16 @@ class TriageEngine {
       if (!concept.confirmed) continue;
 
       final contribution = concept.similarity * concept.weight;
-      reasons.add(concept.hindiLabel);
+      reasons.add(concept.getLabelForLang(lang));
 
       switch (concept.category) {
         case 'RED':
           redScore += contribution;
+          break;
         case 'YELLOW':
           yellowScore += contribution;
           yellowCount++;
+          break;
         default:
           break; // GREEN concepts do not contribute to urgency scores
       }
@@ -499,7 +502,9 @@ class TriageEngine {
     }
 
     // ── Reason string ────────────────────────────────────────────────────────
-    if (reasons.isEmpty) reasons.add('कोई गंभीर लक्षण नहीं मिला');
+    if (reasons.isEmpty) {
+      reasons.add(lang == 'hi' ? 'कोई गंभीर लक्षण नहीं मिला' : 'No Critical Symptoms Detected');
+    }
 
     return TriageResult(
       sessionId: sessionId,

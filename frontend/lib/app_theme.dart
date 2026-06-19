@@ -4,10 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // ─── Colors ──────────────────────────────────────────────────────────────
-  static const Color primary      = Color(0xFF5B4FCF);
-  static const Color primaryLight = Color(0xFF7B6FE8);
-  static const Color primaryDark  = Color(0xFF3D33A6);
-  static const Color accent       = Color(0xFF6C63FF);
+  static const Color primary      = Color(0xFF00E5FF); // Neon Cyan
+  static const Color primaryLight = Color(0xFF64FFDA); // Neon Mint/Teal
+  static const Color primaryDark  = Color(0xFF00B0FF); // Deep Neon Blue
+  static const Color accent       = Color(0xFF00FF66); // Neon Green
 
   static const Color bgPage       = Color(0xFFF4F6FF);
   static const Color bgWhite      = Color(0xFFFFFFFF);
@@ -15,7 +15,7 @@ class AppTheme {
 
   static const Color triageRed    = Color(0xFFE53935);
   static const Color triageYellow = Color(0xFFFFC107);
-  static const Color triageGreen  = Color(0xFF43A047);
+  static const Color triageGreen  = Color(0xFF00FF66); // Match Neon Green
 
   static const Color textDark     = Color(0xFF1A1A2E);
   static const Color textMedium   = Color(0xFF555577);
@@ -29,19 +29,19 @@ class AppTheme {
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF5B4FCF), Color(0xFF9B8FFF)],
+    colors: [Color(0xFF00E5FF), Color(0xFF00FF66)],
   );
 
   static const LinearGradient headerGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF5B4FCF), Color(0xFF7B6FE8)],
+    colors: [Color(0xFF00E5FF), Color(0xFF00B0FF)],
   );
 
   static const LinearGradient cardPurple = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF6C63FF), Color(0xFF8B85FF)],
+    colors: [Color(0xFF00FF66), Color(0xFF00E5FF)],
   );
 
   static const LinearGradient redGradient = LinearGradient(
@@ -49,13 +49,13 @@ class AppTheme {
   );
 
   static const LinearGradient greenGradient = LinearGradient(
-    colors: [Color(0xFF43A047), Color(0xFF66BB6A)],
+    colors: [Color(0xFF00FF66), Color(0xFF66BB6A)],
   );
 
   // ─── Shadows ─────────────────────────────────────────────────────────────
   static List<BoxShadow> cardShadow = [
     BoxShadow(
-      color: const Color(0xFF5B4FCF).withOpacity(0.08),
+      color: const Color(0xFF00E5FF).withOpacity(0.08),
       blurRadius: 20,
       offset: const Offset(0, 6),
     ),
@@ -63,7 +63,7 @@ class AppTheme {
 
   static List<BoxShadow> buttonShadow = [
     BoxShadow(
-      color: const Color(0xFF5B4FCF).withOpacity(0.35),
+      color: const Color(0xFF00E5FF).withOpacity(0.35),
       blurRadius: 16,
       offset: const Offset(0, 6),
     ),

@@ -125,31 +125,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                       ),
                     ),
                   ),
-                  // Top dashboard language toggle
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButton<String>(
-                      value: lang,
-                      underline: const SizedBox(),
-                      icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 16),
-                      style: GoogleFonts.poppins(
-                          color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600),
-                      items: const [
-                        DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
-                        DropdownMenuItem(value: 'mr', child: Text('मराठी')),
-                        DropdownMenuItem(value: 'en', child: Text('English')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          context.read<TriageProvider>().setLanguage(val);
-                        }
-                      },
-                    ),
-                  ),
+                  // Language selector is now exclusively in the drawer.
                 ],
               ),
             ),
@@ -220,9 +196,9 @@ class _VoiceScreenState extends State<VoiceScreen>
 
                   const SizedBox(height: 32),
 
-                  // Headline instructions: "बोलिए / Talk / सांगा" (at least 24sp)
+                  // Headline instructions: strictly monolingual
                   Text(
-                    "बोलिए / Talk / सांगा",
+                    lang == 'hi' ? "बोलिए" : "Talk",
                     style: GoogleFonts.poppins(
                       color: AppTheme.textDark,
                       fontSize: 26,

@@ -1,3 +1,4 @@
+// ===== FILE: lib/screens/referral_screen.dart =====
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -25,7 +26,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   final GlobalKey _globalKey = GlobalKey();
   bool _isSharing = false;
 
-  Future<void> _sharePdf() async {
+  Future<void> _sharePdf(String lang) async {
     if (_isSharing) return;
     setState(() {
       _isSharing = true;
@@ -69,14 +70,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
       // Share PDF using share_plus
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'ASHA Referral Slip',
+        text: lang == 'hi' ? 'ASHA रेफरल स्लिप' : 'ASHA Referral Slip',
       );
     } catch (e) {
       debugPrint("Error sharing PDF: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('शेयर करने में त्रुटि: $e'),
+            content: Text(lang == 'hi' ? 'शेयर करने में त्रुटि: $e' : 'Sharing Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -96,18 +97,19 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final session = provider.currentSession;
     final result = provider.currentResult;
     final now = DateTime.now();
+    final lang = provider.selectedLanguage;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
       appBar: AppBar(
         backgroundColor: AppTheme.bgWhite,
         elevation: 0,
-        title: Text('रेफरल स्लिप',
-            style: GoogleFonts.poppins(
-                color: AppTheme.textDark, fontWeight: FontWeight.w700)),
+        title: Text(
+          lang == 'hi' ? 'रेफरल स्लिप' : 'Referral Slip',
+          style: GoogleFonts.poppins(color: AppTheme.textDark, fontWeight: FontWeight.w700),
+        ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppTheme.textDark, size: 18),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.textDark, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -127,7 +129,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 )
               : IconButton(
                   icon: Icon(Icons.share_rounded, color: AppTheme.primary),
-                  onPressed: _sharePdf,
+                  onPressed: () => _sharePdf(lang),
                 ),
         ],
       ),
@@ -144,8 +146,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   color: AppTheme.bgWhite,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: AppTheme.cardShadow,
-                  border: Border.all(
-                      color: AppTheme.triageRed.withOpacity(0.2), width: 1.5),
+                  border: Border.all(color: AppTheme.triageRed.withOpacity(0.2), width: 1.5),
                 ),
                 child: Column(
                   children: [
@@ -162,16 +163,20 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       ),
                       child: Column(
                         children: [
-                          const Icon(Icons.local_hospital_rounded,
-                              color: Colors.white, size: 36),
+                          const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 36),
                           const SizedBox(height: 8),
-                          Text('ASHA तत्काल रेफरल',
-                              style: GoogleFonts.poppins(
-                                  color: Colors.white, fontSize: 18,
-                                  fontWeight: FontWeight.w700)),
-                          Text('Urgent Health Referral Slip',
-                              style: GoogleFonts.poppins(
-                                  color: Colors.white70, fontSize: 12)),
+                          Text(
+                            lang == 'hi' ? 'ASHA तत्काल रेफरल' : 'ASHA Urgent Referral',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            lang == 'hi' ? 'त्वरित स्वास्थ्य रेफरल पर्ची' : 'Urgent Health Referral Slip',
+                            style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12),
+                          ),
                         ],
                       ),
                     ),
@@ -181,69 +186,92 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       padding: const EdgeInsets.all(18),
                       child: Column(
                         children: [
-                          _infoRow('रेफरल कोड (Session Code)',
-                              session?.sessionCode ?? '--'),
+                          _infoRow(
+                            lang == 'hi' ? 'रेफरल कोड' : 'Referral Code',
+                            session?.sessionCode ?? '--',
+                          ),
                           _divider(),
-                          _infoRow('ASHA कार्यकर्ता',
-                              session?.ashaWorkerName ?? 'ASHA Worker'),
+                          _infoRow(
+                            lang == 'hi' ? 'ASHA कार्यकर्ता' : 'ASHA Worker',
+                            session?.ashaWorkerName ?? 'ASHA Worker',
+                          ),
                           _divider(),
-                          _infoRow('मरीज आयु वर्ग',
-                              session?.patientAgeGroup?.labelHi ?? '--'),
+                          _infoRow(
+                            lang == 'hi' ? 'मरीज आयु वर्ग' : 'Patient Age Group',
+                            session?.patientAgeGroup?.labelForLang(lang) ?? '--',
+                          ),
                           _divider(),
-                          _infoRow('लक्षण अवधि',
-                              session?.symptomDuration?.labelHi ?? '--'),
+                          _infoRow(
+                            lang == 'hi' ? 'लक्षण अवधि' : 'Symptom Duration',
+                            session?.symptomDuration?.labelForLang(lang) ?? '--',
+                          ),
                           _divider(),
-                          _infoRow('ट्राइएज स्थिति',
-                              result?.categoryLabel ?? 'गंभीर (Red)'),
+                          _infoRow(
+                            lang == 'hi' ? 'ट्राइएज स्थिति' : 'Triage Status',
+                            result?.categoryLabelForLang(lang) ?? (lang == 'hi' ? 'गंभीर' : 'Critical'),
+                          ),
                           _divider(),
-                          _infoRow('दिनांक',
-                              '${now.day}/${now.month}/${now.year}'),
+                          _infoRow(
+                            lang == 'hi' ? 'दिनांक' : 'Date',
+                            '${now.day}/${now.month}/${now.year}',
+                          ),
                           _divider(),
-                          _infoRow('समय',
-                              '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
+                          _infoRow(
+                            lang == 'hi' ? 'समय' : 'Time',
+                            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+                          ),
                           const SizedBox(height: 16),
                           Container(
+                            width: double.infinity,
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
                               color: AppTheme.triageRed.withOpacity(0.07),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: AppTheme.triageRed.withOpacity(0.25)),
+                              border: Border.all(color: AppTheme.triageRed.withOpacity(0.25)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('लक्षण / Symptoms (Confirmed Only):',
-                                    style: GoogleFonts.poppins(
-                                        color: AppTheme.triageRed, fontSize: 12,
-                                        fontWeight: FontWeight.w700)),
+                                Text(
+                                  lang == 'hi' ? 'पुष्टि किए गए लक्षण:' : 'Confirmed Symptoms:',
+                                  style: GoogleFonts.poppins(
+                                    color: AppTheme.triageRed,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                                 const SizedBox(height: 6),
                                 Builder(
                                   builder: (context) {
-                                    String symptomsText = 'कोई लक्षण नहीं';
-                                    
-                                    // The result.matchedSymptoms has the list of confirmed concept hindiLabels (or reasons) from triage engine
+                                    String symptomsText = lang == 'hi' ? 'कोई लक्षण नहीं' : 'No Symptoms';
                                     if (result != null && result.matchedSymptoms.isNotEmpty) {
                                       symptomsText = result.matchedSymptoms.join(', ');
                                     }
-                                    
                                     return Text(
                                       symptomsText,
                                       style: GoogleFonts.poppins(
-                                          color: AppTheme.textDark, fontSize: 13,
-                                          height: 1.5),
+                                        color: AppTheme.textDark,
+                                        fontSize: 13,
+                                        height: 1.5,
+                                      ),
                                     );
-                                  }
+                                  },
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Text('सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.poppins(
-                                  color: AppTheme.textMedium, fontSize: 12,
-                                  fontWeight: FontWeight.w600)),
+                          Text(
+                            lang == 'hi'
+                                ? 'सरकारी स्वास्थ्य केंद्र (PHC) में तुरंत ले जाएं'
+                                : 'Take immediately to the nearest PHC / Government Health Center',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              color: AppTheme.textMedium,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -255,12 +283,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
             const SizedBox(height: 24),
 
             AppTheme.gradientButton(
-              label: 'नया मरीज शुरू करें',
+              label: lang == 'hi' ? 'नया मरीज शुरू करें' : 'Start New Patient',
               onTap: () {
                 context.read<TriageProvider>().reset();
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                      builder: (_) => const SessionStartScreen()),
+                  MaterialPageRoute(builder: (_) => const SessionStartScreen()),
                   (route) => false,
                 );
               },
@@ -277,17 +304,19 @@ class _ReferralScreenState extends State<ReferralScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Text(label, style: GoogleFonts.poppins(
-              color: AppTheme.textLight, fontSize: 13,
-              fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: GoogleFonts.poppins(color: AppTheme.textLight, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
           const Spacer(),
-          Text(value, style: GoogleFonts.poppins(
-              color: AppTheme.textDark, fontSize: 13,
-              fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: GoogleFonts.poppins(color: AppTheme.textDark, fontSize: 13, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
   }
 
-  Widget _divider() => Divider(color: AppTheme.divider, height: 1);
+  Widget _divider() => const Divider(color: AppTheme.divider, height: 1);
 }

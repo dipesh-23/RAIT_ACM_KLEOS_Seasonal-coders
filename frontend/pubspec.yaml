@@ -29,6 +29,10 @@ dependencies:
   uuid: ^4.3.3
   pdf: ^3.10.8
   share_plus: ^13.1.0
+  fl_chart: ^0.66.2
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.6
+
 
 
   # Local Database & Storage

@@ -30,43 +30,34 @@ class TriageResult {
 
   String get categoryLabel {
     switch (category) {
-      case TriageCategory.red:    return 'गंभीर (Red)';
-      case TriageCategory.yellow: return 'सतर्क (Yellow)';
-      case TriageCategory.green:  return 'सामान्य (Green)';
+      case TriageCategory.red:    return 'गंभीर';
+      case TriageCategory.yellow: return 'सतर्क';
+      case TriageCategory.green:  return 'सामान्य';
     }
   }
 
   String categoryLabelForLang(String lang) {
-    if (lang == 'hi') return categoryLabel;
-    if (lang == 'mr') {
+    if (lang == 'hi') {
       switch (category) {
-        case TriageCategory.red:    return 'गंभीर (Red)';
-        case TriageCategory.yellow: return 'सतर्क (Yellow)';
-        case TriageCategory.green:  return 'सामान्य (Green)';
+        case TriageCategory.red:    return 'गंभीर';
+        case TriageCategory.yellow: return 'सतर्क';
+        case TriageCategory.green:  return 'सामान्य';
       }
     }
     switch (category) {
-      case TriageCategory.red:    return 'Critical (Red)';
-      case TriageCategory.yellow: return 'Caution (Yellow)';
-      case TriageCategory.green:  return 'Normal (Green)';
+      case TriageCategory.red:    return 'Critical';
+      case TriageCategory.yellow: return 'Caution';
+      case TriageCategory.green:  return 'Normal';
     }
   }
 
   String getRecommendationForLang(String lang) {
     if (lang == 'hi') return recommendationHindi;
-    if (lang == 'mr') {
-      switch (category) {
-        case TriageCategory.red:    return 'त्वरित रुग्णालयात पाठवा — हे गंभीर प्रकरण आहे.';
-        case TriageCategory.yellow: return 'उद्या PHC मध्ये घेऊन जा — तपासणी आवश्यक आहे.';
-        case TriageCategory.green:  return 'घरी विश्रांती घ्या — २ दिवस लक्ष ठेवा.';
-      }
-    }
     return recommendation;
   }
 
   String audioFileForLang(String lang) {
     final prefix = category.name;
-    if (lang == 'mr') return 'assets/audio/mr/${prefix}.mp3';
     if (lang == 'en') return 'assets/audio/en/${prefix}.mp3';
     return 'assets/audio/hi/${prefix}.mp3';
   }

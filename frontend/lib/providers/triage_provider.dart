@@ -141,6 +141,7 @@ class TriageProvider extends ChangeNotifier {
       transcribedText: _transcribedText,
       ageGroup: _currentSession?.patientAgeGroup?.name ?? 'ADULT',
       duration: _currentSession?.symptomDuration?.name ?? 'TODAY',
+      lang: _selectedLanguage,
     );
     
     setTriageResult(result);

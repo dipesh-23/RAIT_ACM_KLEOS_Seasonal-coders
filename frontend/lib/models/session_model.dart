@@ -1,41 +1,37 @@
 import 'triage_result.dart';
 
 enum AgeGroup {
-  infant('0 - 2 Years', '0 - 2 वर्षे', '0 - 2 वर्ष'),
-  child('3 - 12 Years', '3 - 12 वर्षे', '3 - 12 वर्ष'),
-  teen('13 - 19 Years', '13 - 19 वर्षे', '13 - 19 वर्ष'),
-  adult('20 - 59 Years', '20 - 59 वर्षे', '20 - 59 वर्ष'),
-  senior('60+ Years', '60+ वर्षे', '60+ वर्ष');
+  infant('0 - 2 Years', '0 - 2 वर्ष'),
+  child('3 - 12 Years', '3 - 12 वर्ष'),
+  teen('13 - 19 Years', '13 - 19 वर्ष'),
+  adult('20 - 59 Years', '20 - 59 वर्ष'),
+  senior('60+ Years', '60+ वर्ष');
 
   final String labelEn;
-  final String labelMr;
   final String labelHi;
 
-  const AgeGroup(this.labelEn, this.labelMr, this.labelHi);
+  const AgeGroup(this.labelEn, this.labelHi);
 
   String labelForLang(String langCode) {
     if (langCode == 'hi') return labelHi;
-    if (langCode == 'mr') return labelMr;
     return labelEn;
   }
 }
 
 enum SymptomDuration {
-  hours('Few Hours', 'काही तास', 'कुछ घंटे'),
-  days1_3('1 - 3 Days', '1 - 3 दिवस', '1 - 3 दिन'),
-  days4_7('4 - 7 Days', '4 - 7 दिवस', '4 - 7 दिन'),
-  weeks('1 - 4 Weeks', '1 - 4 आठवडे', '1 - 4 सप्ताह'),
-  months('More than a Month', 'एका महिन्याहून अधिक', 'एक महीने से अधिक');
+  hours('Few Hours', 'कुछ घंटे'),
+  days1_3('1 - 3 Days', '1 - 3 दिन'),
+  days4_7('4 - 7 Days', '4 - 7 दिन'),
+  weeks('1 - 4 Weeks', '1 - 4 सप्ताह'),
+  months('More than a Month', 'एक महीने से अधिक');
 
   final String labelEn;
-  final String labelMr;
   final String labelHi;
 
-  const SymptomDuration(this.labelEn, this.labelMr, this.labelHi);
+  const SymptomDuration(this.labelEn, this.labelHi);
 
   String labelForLang(String langCode) {
     if (langCode == 'hi') return labelHi;
-    if (langCode == 'mr') return labelMr;
     return labelEn;
   }
 }

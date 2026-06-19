@@ -27,8 +27,20 @@ class TranscriptionScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               child: Row(
                 children: [
-                  Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 26),
-                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: AppTheme.primary, size: 18),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
                   Expanded(child: Text(AppStrings.get('asha_triage', lang),
                       style: GoogleFonts.poppins(
                           fontSize: 18, fontWeight: FontWeight.w700,
@@ -124,10 +136,10 @@ class TranscriptionScreen extends StatelessWidget {
                     Wrap(
                       spacing: 8, runSpacing: 8,
                       children: [
-                        _symptomChip('बुखार', AppTheme.triageYellow),
-                        _symptomChip('खांसी', AppTheme.triageYellow),
-                        _symptomChip('सांस में तकलीफ', AppTheme.triageRed),
-                        _symptomChip('3 दिन से लक्षण', AppTheme.textLight),
+                        _symptomChip(lang == 'hi' ? 'बुखार' : 'Fever', AppTheme.triageYellow),
+                        _symptomChip(lang == 'hi' ? 'खांसी' : 'Cough', AppTheme.triageYellow),
+                        _symptomChip(lang == 'hi' ? 'सांस में तकलीफ' : 'Difficulty Breathing', AppTheme.triageRed),
+                        _symptomChip(lang == 'hi' ? '3 दिन से लक्षण' : '3 Days of Symptoms', AppTheme.textLight),
                       ],
                     ),
 
