@@ -83,8 +83,16 @@ class EmbeddingService {
     const int outputIdx = 0;
 
     // ── Inference ────────────────────────────────────────────────────────────
+    final inputTensorCount = _interpreter.getInputTensors().length;
+    final List<Object> inputs;
+    if (inputTensorCount == 3) {
+      inputs = [inputIds, attnMask, tokenTypesIn];
+    } else {
+      inputs = [inputIds, attnMask];
+    }
+
     _interpreter.runForMultipleInputs(
-      [inputIds, attnMask, tokenTypesIn],
+      inputs,
       {outputIdx: outputBuffer},
     );
 
