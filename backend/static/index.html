@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ASHA Triage — Demo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',sans-serif;background:#0D1117;color:#fff;min-height:100vh}
+  .header{background:#1A237E;padding:20px 32px;display:flex;align-items:center;gap:16px}
+  .header h1{font-size:24px;font-weight:700}
+  .header p{font-size:13px;color:#B0BEC5;margin-top:4px}
+  .badge{background:rgba(255,255,255,0.15);padding:4px 12px;border-radius:20px;font-size:12px}
+  .container{max-width:720px;margin:40px auto;padding:0 24px}
+  .card{background:#1C2230;border:1px solid #2C3550;border-radius:16px;padding:28px;margin-bottom:24px}
+  label{display:block;font-size:14px;color:#B0BEC5;margin-bottom:8px}
+  textarea{width:100%;background:#0D1117;border:1px solid #2C3550;border-radius:10px;
+    color:#fff;padding:14px;font-size:16px;resize:vertical;min-height:100px}
+  textarea:focus{outline:2px solid #1565C0}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+  .sel-btn{background:#0D1117;border:1px solid #2C3550;border-radius:10px;
+    color:#fff;padding:14px 10px;cursor:pointer;font-size:15px;font-weight:600;
+    text-align:center;transition:.2s}
+  .sel-btn:hover,.sel-btn.active{background:#1565C0;border-color:#1565C0}
+  .btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:18px;
+    font-weight:700;cursor:pointer;transition:.2s;margin-top:8px}
+  .btn-primary{background:#1565C0;color:#fff}
+  .btn-primary:hover{background:#1976D2}
+  .btn-primary:disabled{background:#2C3550;color:#666;cursor:not-allowed}
+  .result{border-radius:14px;padding:28px;text-align:center;margin-top:24px;display:none}
+  .result h2{font-size:36px;font-weight:900;margin-bottom:8px}
+  .result p{font-size:18px;opacity:.9;margin-bottom:16px}
+  .result.RED{background:#D32F2F}
+  .result.YELLOW{background:#F9A825}
+  .result.GREEN{background:#388E3C}
+  .concept-list{text-align:left;background:rgba(0,0,0,.2);border-radius:10px;padding:16px;margin-top:16px}
+  .concept-list h4{font-size:14px;color:rgba(255,255,255,.7);margin-bottom:10px}
+  .concept-list li{list-style:none;font-size:15px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+  .spinner{display:inline-block;width:22px;height:22px;border:3px solid rgba(255,255,255,.3);
+    border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .disclaimer{background:#1C2230;border:1px solid #F9A825;border-radius:10px;
+    padding:14px 18px;font-size:13px;color:#B0BEC5;text-align:center;margin-top:24px}
+  .tag{display:inline-block;padding:2px 10px;border-radius:6px;font-size:12px;font-weight:700;margin-left:6px}
+  .tag.RED{background:#D32F2F}
+  .tag.YELLOW{background:#F9A825;color:#333}
+  .tag.GREEN{background:#388E3C}
+</style>
+</head>
+<body>
+<div class="header">
+  <span style="font-size:36px">⚕️</span>
+  <div>
+    <h1>ASHA ट्राइएज — Demo</h1>
+    <p>Offline triage decision support for frontline health workers &nbsp;<span class="badge">No Diagnosis · No Medication</span></p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <label>लक्षण बताएं (Hindi or English)</label>
+    <textarea id="transcript" placeholder="e.g. पांच साल का बच्चा, दो दिन से तेज बुखार, सांस लेने में बहुत तकलीफ"></textarea>
+
+    <div style="margin-top:20px">
+      <label>मरीज की उम्र (Age Group)</label>
+      <div class="grid-2">
+        <button class="sel-btn" data-group="age" data-val="NEWBORN">नवजात<br><small style="font-weight:400;font-size:12px">0-28 दिन</small></button>
+        <button class="sel-btn" data-group="age" data-val="CHILD">बच्चा<br><small style="font-weight:400;font-size:12px">1 माह - 12 वर्ष</small></button>
+        <button class="sel-btn" data-group="age" data-val="ADULT">वयस्क<br><small style="font-weight:400;font-size:12px">13-60 वर्ष</small></button>
+        <button class="sel-btn" data-group="age" data-val="ELDERLY">बुजुर्ग<br><small style="font-weight:400;font-size:12px">60+ वर्ष</small></button>
+      </div>
+    </div>
+
+    <div>
+      <label>लक्षण कब से? (Duration)</label>
+      <div class="grid-3">
+        <button class="sel-btn" data-group="dur" data-val="TODAY">आज</button>
+        <button class="sel-btn" data-group="dur" data-val="TWO_THREE_DAYS">2-3 दिन</button>
+        <button class="sel-btn" data-group="dur" data-val="FOUR_PLUS_DAYS">4+ दिन</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="analyzeBtn" disabled onclick="runTriage()">
+      ट्राइएज करें
+    </button>
+  </div>
+
+  <div class="result" id="result">
+    <h2 id="resultLevel"></h2>
+    <p id="resultReason"></p>
+    <div style="font-size:13px;opacity:.7">Session Code: <span id="sessionCode"></span></div>
+    <div class="concept-list" id="conceptList" style="display:none">
+      <h4>Detected Concepts:</h4>
+      <ul id="conceptItems"></ul>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠️ यह एक ट्राइएज रेफरल प्रणाली है। यह निदान नहीं है। दवा की सलाह नहीं है।<br>
+    This is triage guidance only — not a diagnosis. No medication advice.
+  </div>
+</div>
+
+<script>
+let selectedAge = '';
+let selectedDur = '';
+
+document.querySelectorAll('.sel-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const group = btn.dataset.group;
+    document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (group === 'age') selectedAge = btn.dataset.val;
+    if (group === 'dur') selectedDur = btn.dataset.val;
+    checkCanAnalyze();
+  });
+});
+
+document.getElementById('transcript').addEventListener('input', checkCanAnalyze);
+
+function checkCanAnalyze() {
+  const t = document.getElementById('transcript').value.trim();
+  document.getElementById('analyzeBtn').disabled = !(t && selectedAge && selectedDur);
+}
+
+async function runTriage() {
+  const btn = document.getElementById('analyzeBtn');
+  const transcript = document.getElementById('transcript').value.trim();
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> विश्लेषण हो रहा है...';
+
+  try {
+    const res = await fetch('/full-triage', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({transcript, age_group: selectedAge, duration: selectedDur}),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    showResult(data);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'ट्राइएज करें';
+    checkCanAnalyze();
+  }
+}
+
+function showResult(data) {
+  const el = document.getElementById('result');
+  el.className = 'result ' + data.triage_level;
+  el.style.display = 'block';
+
+  const icons = {RED: '🔴', YELLOW: '🟡', GREEN: '🟢'};
+  document.getElementById('resultLevel').textContent = icons[data.triage_level] + ' ' + data.level_hindi;
+  document.getElementById('resultReason').textContent = data.hindi_reason;
+  document.getElementById('sessionCode').textContent = data.session_code;
+
+  const list = document.getElementById('conceptList');
+  const items = document.getElementById('conceptItems');
+  items.innerHTML = '';
+  if (data.confirmed_concepts && data.confirmed_concepts.length > 0) {
+    data.confirmed_concepts.forEach(c => {
+      const li = document.createElement('li');
+      li.innerHTML = `${c.hindi_question} <span class="tag ${c.category}">${c.category}</span>`;
+      items.appendChild(li);
+    });
+    list.style.display = 'block';
+  } else {
+    list.style.display = 'none';
+  }
+  el.scrollIntoView({behavior: 'smooth'});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+{
+  "anchors": [
+    {
+      "key": "breathing_difficulty",
+      "concept": "breathing difficulty unable to breathe respiratory distress",
+      "hindi_question": "क्या मरीज को सांस लेने में तकलीफ है?",
+      "category": "RED",
+      "weight": 10.0
+    },
+    {
+      "key": "unconscious",
+      "concept": "unconscious unresponsive not waking up fainted collapsed",
+      "hindi_question": "क्या मरीज बेहोश है या जवाब नहीं दे रहा?",
+      "category": "RED",
+      "weight": 10.0
+    },
+    {
+      "key": "seizure",
+      "concept": "seizure convulsion fits jerking body shaking uncontrolled",
+      "hindi_question": "क्या मरीज को दौरा पड़ा?",
+      "category": "RED",
+      "weight": 10.0
+    },
+    {
+      "key": "severe_bleeding",
+      "concept": "severe bleeding heavy blood loss hemorrhage wound",
+      "hindi_question": "क्या मरीज को बहुत ज्यादा खून आ रहा है?",
+      "category": "RED",
+      "weight": 10.0
+    },
+    {
+      "key": "chest_pain",
+      "concept": "chest pain heart pain pressure tightness in chest",
+      "hindi_question": "क्या मरीज के सीने में दर्द है?",
+      "category": "RED",
+      "weight": 9.0
+    },
+    {
+      "key": "newborn_emergency",
+      "concept": "newborn baby not breathing not crying cold blue lips",
+      "hindi_question": "क्या नवजात शिशु को कोई गंभीर समस्या है?",
+      "category": "RED",
+      "weight": 10.0
+    },
+    {
+      "key": "labor_complication",
+      "concept": "labor delivery complication difficult birth prolonged obstructed",
+      "hindi_question": "क्या प्रसव में कोई समस्या आ रही है?",
+      "category": "RED",
+      "weight": 10.0
+    },
+    {
+      "key": "not_eating_drinking",
+      "concept": "child not eating not drinking refusing food water dehydrated",
+      "hindi_question": "क्या मरीज ने खाना पीना बंद कर दिया है?",
+      "category": "RED",
+      "weight": 8.0
+    },
+    {
+      "key": "high_fever_prolonged",
+      "concept": "high fever many days persistent high temperature several days",
+      "hindi_question": "क्या मरीज को कई दिनों से तेज बुखार है?",
+      "category": "YELLOW",
+      "weight": 6.0
+    },
+    {
+      "key": "repeated_vomiting",
+      "concept": "repeated vomiting multiple times cannot keep food down nausea",
+      "hindi_question": "क्या मरीज को बार बार उल्टी हो रही है?",
+      "category": "YELLOW",
+      "weight": 5.0
+    },
+    {
+      "key": "severe_diarrhea",
+      "concept": "severe diarrhea watery stool many times loose motion dehydration",
+      "hindi_question": "क्या मरीज को बहुत ज्यादा दस्त हो रहे हैं?",
+      "category": "YELLOW",
+      "weight": 5.0
+    },
+    {
+      "key": "severe_headache",
+      "concept": "severe headache head pain unbearable throbbing",
+      "hindi_question": "क्या मरीज के सिर में बहुत तेज दर्द है?",
+      "category": "YELLOW",
+      "weight": 5.0
+    },
+    {
+      "key": "pregnancy_concern",
+      "concept": "pregnancy problem swelling pain bleeding spotting pregnant woman",
+      "hindi_question": "क्या गर्भवती महिला को कोई परेशानी है?",
+      "category": "YELLOW",
+      "weight": 6.0
+    },
+    {
+      "key": "child_lethargic",
+      "concept": "child lethargic not active weak not responding normally dull",
+      "hindi_question": "क्या बच्चा बहुत सुस्त और कमज़ोर है?",
+      "category": "YELLOW",
+      "weight": 6.0
+    },
+    {
+      "key": "body_swelling",
+      "concept": "swelling body face hands feet edema puffiness",
+      "hindi_question": "क्या मरीज के शरीर में सूजन है?",
+      "category": "YELLOW",
+      "weight": 5.0
+    },
+    {
+      "key": "mild_fever",
+      "concept": "mild fever low grade temperature slight warmth warm body",
+      "hindi_question": "क्या मरीज को हल्का बुखार है?",
+      "category": "GREEN",
+      "weight": 2.0
+    },
+    {
+      "key": "common_cold",
+      "concept": "common cold cough runny nose sneezing sore throat",
+      "hindi_question": "क्या मरीज को सर्दी जुकाम है?",
+      "category": "GREEN",
+      "weight": 1.0
+    },
+    {
+      "key": "minor_body_ache",
+      "concept": "minor body ache mild pain muscles sore tiredness fatigue",
+      "hindi_question": "क्या मरीज के शरीर में हल्का दर्द है?",
+      "category": "GREEN",
+      "weight": 1.0
+    },
+    {
+      "key": "minor_stomach_ache",
+      "concept": "mild stomach ache indigestion gas bloating minor cramps",
+      "hindi_question": "क्या मरीज के पेट में हल्का दर्द है?",
+      "category": "GREEN",
+      "weight": 1.0
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+PLACEHOLDER - Replace with real vocab.txt from HuggingFace before building APK.
+Download: https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/vocab.txt

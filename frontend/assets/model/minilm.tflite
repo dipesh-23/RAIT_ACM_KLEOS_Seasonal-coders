@@ -1,0 +1,3 @@
+PLACEHOLDER - Replace with real MiniLM TFLite model before building APK.
+Download: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+Convert using: python backend/scripts/convert_model.py

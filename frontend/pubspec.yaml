@@ -1,0 +1,40 @@
+name: asha_triage
+description: Offline rural health triage app for ASHA workers
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  speech_to_text: ^6.6.0
+  flutter_tts: ^3.8.5
+  audioplayers: ^5.2.1
+  tflite_flutter: ^0.10.4
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  pdf: ^3.10.7
+  printing: ^5.11.0
+  share_plus: ^7.2.1
+  path_provider: ^2.1.1
+  provider: ^6.1.1
+  wakelock_plus: ^1.1.4
+  permission_handler: ^11.1.0
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/model/minilm.tflite
+    - assets/model/vocab.txt
+    - assets/anchors/clinical_anchors.json
+    - assets/audio/red_hindi.mp3
+    - assets/audio/yellow_hindi.mp3
+    - assets/audio/green_hindi.mp3
