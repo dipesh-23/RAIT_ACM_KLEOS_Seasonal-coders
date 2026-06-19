@@ -23,7 +23,7 @@ class OnboardingService {
     await _prefs.setString(_keyLanguage, language);
   }
 
-  String get workerName => _prefs.getString(_keyWorkerName) ?? 'ASHA कार्यकर्ता';
+  String get workerName => _prefs.getString(_keyWorkerName) ?? 'ASHA Worker';
   String get language   => _prefs.getString(_keyLanguage) ?? 'hi';
 
   Future<void> reset() async => _prefs.clear();

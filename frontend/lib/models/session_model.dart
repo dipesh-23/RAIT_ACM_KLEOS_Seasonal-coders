@@ -1,60 +1,42 @@
-import 'package:uuid/uuid.dart';
+import 'triage_result.dart';
 
-enum AgeGroup { child, youth, adult, elderly }
-enum SymptomDuration { today, twothreedays, fourplus }
+enum AgeGroup {
+  infant('0 - 2 Years', '0 - 2 वर्षे', '0 - 2 वर्ष'),
+  child('3 - 12 Years', '3 - 12 वर्षे', '3 - 12 वर्ष'),
+  teen('13 - 19 Years', '13 - 19 वर्षे', '13 - 19 वर्ष'),
+  adult('20 - 59 Years', '20 - 59 वर्षे', '20 - 59 वर्ष'),
+  senior('60+ Years', '60+ वर्षे', '60+ वर्ष');
 
-extension AgeGroupLabel on AgeGroup {
-  String labelForLang(String lang) {
-    if (lang == 'hi') return hindi;
-    if (lang == 'mr') {
-      switch (this) {
-        case AgeGroup.child:   return 'लहान मूल';
-        case AgeGroup.youth:   return 'तरुण';
-        case AgeGroup.adult:   return 'प्रौढ';
-        case AgeGroup.elderly: return 'वृद्ध';
-      }
-    }
-    switch (this) {
-      case AgeGroup.child:   return 'Child';
-      case AgeGroup.youth:   return 'Youth';
-      case AgeGroup.adult:   return 'Adult';
-      case AgeGroup.elderly: return 'Elderly';
-    }
-  }
+  final String labelEn;
+  final String labelMr;
+  final String labelHi;
 
-  String get hindi {
-    switch (this) {
-      case AgeGroup.child:   return 'बच्चा';
-      case AgeGroup.youth:   return 'युवा';
-      case AgeGroup.adult:   return 'वयस्क';
-      case AgeGroup.elderly: return 'बुजुर्ग';
-    }
+  const AgeGroup(this.labelEn, this.labelMr, this.labelHi);
+
+  String labelForLang(String langCode) {
+    if (langCode == 'hi') return labelHi;
+    if (langCode == 'mr') return labelMr;
+    return labelEn;
   }
 }
 
-extension SymptomDurationLabel on SymptomDuration {
-  String labelForLang(String lang) {
-    if (lang == 'hi') return hindi;
-    if (lang == 'mr') {
-      switch (this) {
-        case SymptomDuration.today:        return 'आज';
-        case SymptomDuration.twothreedays: return '२-३ दिवस';
-        case SymptomDuration.fourplus:     return '४+ दिवस';
-      }
-    }
-    switch (this) {
-      case SymptomDuration.today:        return 'Today';
-      case SymptomDuration.twothreedays: return '2-3 Days';
-      case SymptomDuration.fourplus:     return '4+ Days';
-    }
-  }
+enum SymptomDuration {
+  hours('Few Hours', 'काही तास', 'कुछ घंटे'),
+  days1_3('1 - 3 Days', '1 - 3 दिवस', '1 - 3 दिन'),
+  days4_7('4 - 7 Days', '4 - 7 दिवस', '4 - 7 दिन'),
+  weeks('1 - 4 Weeks', '1 - 4 आठवडे', '1 - 4 सप्ताह'),
+  months('More than a Month', 'एका महिन्याहून अधिक', 'एक महीने से अधिक');
 
-  String get hindi {
-    switch (this) {
-      case SymptomDuration.today:        return 'आज';
-      case SymptomDuration.twothreedays: return '2-3 दिन';
-      case SymptomDuration.fourplus:     return '4+ दिन';
-    }
+  final String labelEn;
+  final String labelMr;
+  final String labelHi;
+
+  const SymptomDuration(this.labelEn, this.labelMr, this.labelHi);
+
+  String labelForLang(String langCode) {
+    if (langCode == 'hi') return labelHi;
+    if (langCode == 'mr') return labelMr;
+    return labelEn;
   }
 }
 
@@ -62,11 +44,15 @@ class SessionModel {
   final String id;
   final String sessionCode;
   final String ashaWorkerName;
+  final String? patientName;
+  final String? patientGender;
+  final String? patientContact;
   final AgeGroup? patientAgeGroup;
   final SymptomDuration? symptomDuration;
-  final String? transcribedText;
-  final String? confirmedConcepts;
-  final String? triageLevel;
+
+  final String transcribedText;
+  final List<String> confirmedConcepts;
+  final String triageLevel;
   final DateTime startedAt;
   final bool isCompleted;
   final bool referralGenerated;
@@ -75,30 +61,36 @@ class SessionModel {
     String? id,
     String? sessionCode,
     required this.ashaWorkerName,
+    this.patientName,
+    this.patientGender,
+    this.patientContact,
     this.patientAgeGroup,
     this.symptomDuration,
-    this.transcribedText,
-    this.confirmedConcepts,
-    this.triageLevel,
+    this.transcribedText = '',
+    this.confirmedConcepts = const [],
+    this.triageLevel = 'GREEN',
     DateTime? startedAt,
     this.isCompleted = false,
     this.referralGenerated = false,
-  })  : id = id ?? const Uuid().v4(),
-        sessionCode = sessionCode ?? _generateSessionCode(),
+  })  : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        sessionCode = sessionCode ?? _generateCode(),
         startedAt = startedAt ?? DateTime.now();
 
-  static String _generateSessionCode() {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final code = (now % 900000) + 100000;
-    return code.toString();
+  static String _generateCode() {
+    final chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rand = DateTime.now().microsecondsSinceEpoch.toString();
+    return 'ASHA-${rand.substring(rand.length - 4)}';
   }
 
   SessionModel copyWith({
     String? ashaWorkerName,
+    String? patientName,
+    String? patientGender,
+    String? patientContact,
     AgeGroup? patientAgeGroup,
     SymptomDuration? symptomDuration,
     String? transcribedText,
-    String? confirmedConcepts,
+    List<String>? confirmedConcepts,
     String? triageLevel,
     bool? isCompleted,
     bool? referralGenerated,
@@ -107,6 +99,9 @@ class SessionModel {
       id: id,
       sessionCode: sessionCode,
       ashaWorkerName: ashaWorkerName ?? this.ashaWorkerName,
+      patientName: patientName ?? this.patientName,
+      patientGender: patientGender ?? this.patientGender,
+      patientContact: patientContact ?? this.patientContact,
       patientAgeGroup: patientAgeGroup ?? this.patientAgeGroup,
       symptomDuration: symptomDuration ?? this.symptomDuration,
       transcribedText: transcribedText ?? this.transcribedText,
@@ -122,10 +117,13 @@ class SessionModel {
     'id': id,
     'session_code': sessionCode,
     'asha_worker_name': ashaWorkerName,
+    'patient_name': patientName,
+    'patient_gender': patientGender,
+    'patient_contact': patientContact,
     'patient_age_group': patientAgeGroup?.name,
     'symptom_duration': symptomDuration?.name,
     'transcribed_text': transcribedText,
-    'confirmed_concepts': confirmedConcepts,
+    'confirmed_concepts': confirmedConcepts.join('||'),
     'triage_level': triageLevel,
     'started_at': startedAt.toIso8601String(),
     'is_completed': isCompleted ? 1 : 0,
@@ -136,15 +134,18 @@ class SessionModel {
     id: map['id'],
     sessionCode: map['session_code'],
     ashaWorkerName: map['asha_worker_name'],
+    patientName: map['patient_name'],
+    patientGender: map['patient_gender'],
+    patientContact: map['patient_contact'],
     patientAgeGroup: map['patient_age_group'] != null
         ? AgeGroup.values.firstWhere((e) => e.name == map['patient_age_group'])
         : null,
     symptomDuration: map['symptom_duration'] != null
         ? SymptomDuration.values.firstWhere((e) => e.name == map['symptom_duration'])
         : null,
-    transcribedText: map['transcribed_text'],
-    confirmedConcepts: map['confirmed_concepts'],
-    triageLevel: map['triage_level'],
+    transcribedText: map['transcribed_text'] ?? '',
+    confirmedConcepts: (map['confirmed_concepts'] as String?)?.split('||').where((s) => s.isNotEmpty).toList() ?? [],
+    triageLevel: map['triage_level'] ?? 'GREEN',
     startedAt: DateTime.parse(map['started_at']),
     isCompleted: map['is_completed'] == 1,
     referralGenerated: map['referral_generated'] == 1,

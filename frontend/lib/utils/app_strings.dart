@@ -31,6 +31,51 @@ class AppStrings {
       'mr': 'नवीन रुग्ण ट्राइएज सुरू करा',
       'en': 'Start New Patient Triage',
     },
+    'patient_details_title': {
+      'hi': 'मरीज का विवरण',
+      'mr': 'रुग्णाचा तपशील',
+      'en': 'Patient Details',
+    },
+    'patient_name_label': {
+      'hi': 'मरीज का नाम',
+      'mr': 'रुग्णाचे नाव',
+      'en': 'Patient Name',
+    },
+    'patient_name_hint': {
+      'hi': 'नाम दर्ज करें',
+      'mr': 'नाव प्रविष्ट करा',
+      'en': 'Enter Name',
+    },
+    'patient_contact_label': {
+      'hi': 'मोबाइल नंबर',
+      'mr': 'मोबाईल क्रमांक',
+      'en': 'Mobile Number',
+    },
+    'patient_contact_hint': {
+      'hi': '10 अंकों का नंबर',
+      'mr': '१० अंकी क्रमांक',
+      'en': '10-digit number',
+    },
+    'invalid_contact': {
+      'hi': 'कृपया सही 10-अंकों का नंबर दर्ज करें',
+      'mr': 'कृपया योग्य १०-अंकी क्रमांक प्रविष्ट करा',
+      'en': 'Please enter a valid 10-digit number',
+    },
+    'patient_gender_label': {
+      'hi': 'लिंग',
+      'mr': 'लिंग',
+      'en': 'Gender',
+    },
+    'gender_male': {
+      'hi': 'पुरुष',
+      'mr': 'पुरुष',
+      'en': 'Male',
+    },
+    'gender_female': {
+      'hi': 'महिला',
+      'mr': 'स्त्री',
+      'en': 'Female',
+    },
     'worker_name_label': {
       'hi': 'कार्यकर्ता का नाम दर्ज करें',
       'mr': 'कार्यकर्त्याचे नाव प्रविष्ट करा',

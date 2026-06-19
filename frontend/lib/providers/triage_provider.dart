@@ -147,13 +147,11 @@ class TriageProvider extends ChangeNotifier {
 
     // Save final session state
     if (_currentSession != null) {
-      final confirmedConceptsJson = jsonEncode(
-        _detectedConcepts.where((c) => c.confirmed).map((c) => c.conceptKey).toList()
-      );
+      final confirmedConceptsList = _detectedConcepts.where((c) => c.confirmed).map((c) => c.conceptKey).toList();
       
       _currentSession = _currentSession!.copyWith(
         isCompleted: true,
-        confirmedConcepts: confirmedConceptsJson,
+        confirmedConcepts: confirmedConceptsList,
         triageLevel: result.category.name,
       );
       DatabaseService.instance.updateSession(_currentSession!);

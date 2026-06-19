@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import '../app_theme.dart';
 import '../services/onboarding_service.dart';
 import 'session_start_screen.dart';
+import 'package:provider/provider.dart';
+import '../providers/triage_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -18,7 +19,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _slideCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
-  bool _isCheckingLanguage = false;
 
   @override
   void initState() {
@@ -29,8 +29,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     Future.delayed(const Duration(milliseconds: 200), () {
-      _fadeCtrl.forward();
-      _slideCtrl.forward();
+      if (mounted) {
+        _fadeCtrl.forward();
+        _slideCtrl.forward();
+      }
     });
   }
 
@@ -41,50 +43,52 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
-  void _proceed() async {
-    setState(() => _isCheckingLanguage = true);
-    
-    bool hasHindi = false;
-    try {
-      final stt = SpeechToText();
-      final available = await stt.initialize();
-      if (available) {
-        final locales = await stt.locales();
-        for (var locale in locales) {
-          if (locale.localeId.toLowerCase().contains('hi')) {
-            hasHindi = true;
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('STT init error: $e');
-    }
-
-    setState(() => _isCheckingLanguage = false);
-
-    if (!hasHindi) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('चेतावनी: डिवाइस पर हिंदी (hi) भाषा पैक नहीं मिला। कृपया सेटिंग्स में डाउनलोड करें।',
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)),
-          backgroundColor: AppTheme.triageRed,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      // Wait to let user read the warning
-      await Future.delayed(const Duration(seconds: 3));
-    }
-
-    await OnboardingService.instance.completeOnboarding('ASHA कार्यकर्ता');
+  void _proceed(String langCode, String langName) async {
+    await OnboardingService.instance.completeOnboarding('ASHA Worker', language: langCode);
     if (!mounted) return;
+    context.read<TriageProvider>().setLanguage(langCode);
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const SessionStartScreen(),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
+
+  Widget _langButton(String title, String subtitle, String code, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: () => _proceed(code, title),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: AppTheme.cardShadow,
+            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.1)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: AppTheme.primary, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppTheme.textLight),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -126,146 +130,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     const SizedBox(height: 20),
 
                     // ── Title ──
-                    Text('ASHA ट्राइएज',
+                    Text('Welcome Asha Worker',
+                        textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(
-                            fontSize: 32, fontWeight: FontWeight.w800,
+                            fontSize: 30, fontWeight: FontWeight.w800,
                             color: AppTheme.textDark)),
                     const SizedBox(height: 6),
-                    Text('ऑफलाइन स्वास्थ्य सहायक',
+                    Text('choose language',
                         style: GoogleFonts.poppins(
-                            fontSize: 15, color: AppTheme.textMedium,
+                            fontSize: 16, color: AppTheme.textMedium,
                             fontWeight: FontWeight.w500)),
 
                     const SizedBox(height: 40),
 
-                    // ── Illustration ──
-                    Container(
-                      height: 220,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Color(0xFFEDE9FF), Color(0xFFD5CDFF)],
-                        ),
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Background pattern circles
-                          Positioned(
-                            top: -20, right: -20,
-                            child: Container(
-                              width: 100, height: 100,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.primary.withOpacity(0.08),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: -30, left: -20,
-                            child: Container(
-                              width: 130, height: 130,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppTheme.primary.withOpacity(0.06),
-                              ),
-                            ),
-                          ),
-                          // ASHA Worker Icon
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                    Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
                             children: [
-                              Container(
-                                width: 90, height: 90,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primary.withOpacity(0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(Icons.person_rounded,
-                                    size: 56, color: AppTheme.primary),
-                              ),
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primary.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text('ASHA कार्यकर्ता',
-                                    style: GoogleFonts.poppins(
-                                        color: AppTheme.primary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13)),
-                              ),
+                              _langButton('English', '', 'en', Icons.language),
+                              _langButton('Hindi', '', 'hi', Icons.translate),
+                              _langButton('Marathi', '', 'mr', Icons.translate),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 36),
-
-                    // ── Feature Chips ──
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _featureChip(Icons.wifi_off_rounded, 'पूर्ण ऑफलाइन'),
-                        _featureChip(Icons.mic_rounded, 'आवाज में दर्ज करें'),
-                        _featureChip(Icons.translate_rounded, 'हिंदी'),
-                      ],
-                    ),
-
-                    const Spacer(),
-
-                    // ── CTA Button ──
-                    AppTheme.gradientButton(
-                      label: 'हिंदी भाषा सेटअप करें',
-                      onTap: _proceed,
-                      icon: Icons.language_rounded,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.lock_rounded, size: 14,
-                            color: AppTheme.textLight),
-                        const SizedBox(width: 6),
-                        Text('डेटा गुप्त और अनामांकित',
-                            style: GoogleFonts.poppins(
-                                color: AppTheme.textLight, fontSize: 12,
-                                fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _featureChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: AppTheme.cardShadow,
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: AppTheme.primary, size: 22),
-          const SizedBox(height: 4),
-          Text(label, style: GoogleFonts.poppins(
-              fontSize: 10, color: AppTheme.textMedium,
-              fontWeight: FontWeight.w500)),
-        ],
       ),
     );
   }

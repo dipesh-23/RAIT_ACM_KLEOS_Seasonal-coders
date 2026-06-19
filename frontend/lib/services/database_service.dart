@@ -19,7 +19,7 @@ class DatabaseService {
     final path = join(await getDatabasesPath(), 'asha_triage.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onUpgrade: (db, oldVersion, newVersion) async {
         await db.execute('DROP TABLE IF EXISTS sessions');
         await db.execute('DROP TABLE IF EXISTS triage_results');
@@ -37,6 +37,9 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         session_code TEXT NOT NULL,
         asha_worker_name TEXT NOT NULL,
+        patient_name TEXT,
+        patient_gender TEXT,
+        patient_contact TEXT,
         patient_age_group TEXT,
         symptom_duration TEXT,
         transcribed_text TEXT,
@@ -82,5 +85,47 @@ class DatabaseService {
     final db = await database;
     final maps = await db.query('triage_results', orderBy: 'created_at DESC');
     return maps.map((m) => TriageResult.fromMap(m)).toList();
+  }
+
+  Future<Map<String, int>> getWorkerStats() async {
+    final db = await database;
+
+    final totalResult = await db.rawQuery('SELECT COUNT(*) as count FROM sessions');
+    final total = Sqflite.firstIntValue(totalResult) ?? 0;
+
+    final today = DateTime.now();
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final todayResult = await db.rawQuery(
+        "SELECT COUNT(*) as count FROM sessions WHERE started_at LIKE '$todayStr%'");
+    final todayCount = Sqflite.firstIntValue(todayResult) ?? 0;
+
+    final monthStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}';
+    final monthResult = await db.rawQuery(
+        "SELECT COUNT(*) as count FROM sessions WHERE started_at LIKE '$monthStr%'");
+    final thisMonth = Sqflite.firstIntValue(monthResult) ?? 0;
+
+    final referralResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM sessions WHERE referral_generated = 1');
+    final referrals = Sqflite.firstIntValue(referralResult) ?? 0;
+
+    final criticalResult = await db.rawQuery(
+        "SELECT COUNT(*) as count FROM sessions WHERE triage_level = 'RED'");
+    final critical = Sqflite.firstIntValue(criticalResult) ?? 0;
+
+    return {
+      'total': total,
+      'today': todayCount,
+      'this_month': thisMonth,
+      'referrals': referrals,
+      'critical': critical,
+    };
+  }
+
+  Future<List<SessionModel>> getRecentSessions({int limit = 10}) async {
+    final db = await database;
+    final maps = await db.query('sessions', orderBy: 'started_at DESC', limit: limit);
+    return maps.map((m) => SessionModel.fromMap(m)).toList();
   }
 }

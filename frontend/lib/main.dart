@@ -40,10 +40,14 @@ class AshaTriageApp extends StatelessWidget {
         title: 'ASHA ट्राइएज',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
-        home: OnboardingService.instance.isOnboardingDone
-            ? const SessionStartScreen()
-            : const OnboardingScreen(),
+        home: _resolveHome(),
       ),
     );
+  }
+
+  Widget _resolveHome() {
+    final svc = OnboardingService.instance;
+    if (!svc.isOnboardingDone) return const OnboardingScreen();
+    return const SessionStartScreen();
   }
 }
