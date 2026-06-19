@@ -7,8 +7,10 @@ import '../models/triage_result.dart';
 import '../providers/triage_provider.dart';
 import '../services/tts_service.dart';
 import '../utils/app_strings.dart';
+import '../services/epidemic_service.dart';
 import 'referral_screen.dart';
 import 'session_start_screen.dart';
+import 'epidemic_alert_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   const ResultScreen({super.key});
@@ -32,12 +34,17 @@ class _ResultScreenState extends State<ResultScreen>
     _scaleAnim = CurvedAnimation(parent: _scaleCtrl, curve: Curves.elasticOut);
     _scaleCtrl.forward();
 
-    // Auto-play TTS
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Auto-play TTS and check for epidemics
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<TriageProvider>();
       final result = provider.currentResult;
       final lang = provider.selectedLanguage;
       if (result != null) TtsService.instance.playTriageResult(result.category, lang);
+
+      final alert = await EpidemicService().checkForAlerts(provider.currentSession?.ashaWorkerName ?? 'ASHA Worker');
+      if (alert != null && alert.requiresAction && mounted) {
+        showDialog(context: context, builder: (_) => EpidemicAlertDialog(alert: alert));
+      }
     });
   }
 

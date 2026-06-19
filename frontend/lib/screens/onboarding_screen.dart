@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import '../app_theme.dart';
 import '../services/onboarding_service.dart';
 import 'session_start_screen.dart';
@@ -44,22 +43,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _proceed() async {
     setState(() => _isCheckingLanguage = true);
     
-    bool hasHindi = false;
-    try {
-      final stt = SpeechToText();
-      final available = await stt.initialize();
-      if (available) {
-        final locales = await stt.locales();
-        for (var locale in locales) {
-          if (locale.localeId.toLowerCase().contains('hi')) {
-            hasHindi = true;
-            break;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('STT init error: $e');
-    }
+    // Whisper model handles Hindi natively, no need to check device language packs.
+    bool hasHindi = true;
 
     setState(() => _isCheckingLanguage = false);
 

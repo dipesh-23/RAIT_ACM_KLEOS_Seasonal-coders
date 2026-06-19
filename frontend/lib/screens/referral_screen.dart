@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../app_theme.dart';
 import '../providers/triage_provider.dart';
 import '../models/session_model.dart';
+import '../services/followup_service.dart';
 import 'session_start_screen.dart';
 
 class ReferralScreen extends StatelessWidget {
@@ -32,7 +33,24 @@ class ReferralScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.share_rounded, color: AppTheme.primary),
-            onPressed: () {/* TODO: Share PDF */},
+            onPressed: () async {
+              /* TODO: Share PDF logic (simplified for now) */
+              
+              if (session != null && result != null) {
+                await FollowupService().createFollowupRecord(
+                  session.sessionCode,
+                  session.ashaWorkerName,
+                  result.category.name,
+                  DateTime.now().toIso8601String(),
+                );
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Referral recorded for follow-up')),
+                  );
+                }
+              }
+            },
           ),
         ],
       ),
