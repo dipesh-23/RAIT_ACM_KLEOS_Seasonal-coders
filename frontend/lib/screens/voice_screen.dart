@@ -24,13 +24,7 @@ class _VoiceScreenState extends State<VoiceScreen>
   bool _isRecording = false;
   StreamSubscription<String>? _sttSub;
 
-  // Simulated "live" demo words for UI demonstration
-  final List<String> _demoWords = [
-    'मरीज को', 'तीन दिन से', 'तेज बुखार', 'है और',
-    'लगातार', 'सिरदर्द', 'की शिकायत', 'कर रहा है।',
-  ];
-  int _demoIdx = 0;
-  Timer? _demoTimer;
+
 
   @override
   void initState() {
@@ -48,7 +42,6 @@ class _VoiceScreenState extends State<VoiceScreen>
     _pulseCtrl.dispose();
     _waveCtrl.dispose();
     _sttSub?.cancel();
-    _demoTimer?.cancel();
     super.dispose();
   }
 
@@ -58,18 +51,13 @@ class _VoiceScreenState extends State<VoiceScreen>
 
     if (_isRecording) {
       _liveText = '';
-      _demoIdx = 0;
-      SttService.instance.startListening();
-      // Demo: simulate live transcription for hackathon
-      _demoTimer = Timer.periodic(const Duration(milliseconds: 700), (t) {
-        if (_demoIdx < _demoWords.length) {
-          setState(() => _liveText += (_liveText.isEmpty ? '' : ' ') + _demoWords[_demoIdx++]);
-        } else {
-          t.cancel();
-        }
+      _sttSub?.cancel();
+      _sttSub = SttService.instance.transcriptStream.listen((text) {
+        setState(() => _liveText = text);
       });
+      SttService.instance.startListening();
     } else {
-      _demoTimer?.cancel();
+      _sttSub?.cancel();
       SttService.instance.stopListening();
     }
   }
@@ -85,9 +73,9 @@ class _VoiceScreenState extends State<VoiceScreen>
     setState(() {
       _liveText = '';
       _isRecording = false;
-      _demoIdx = 0;
     });
-    _demoTimer?.cancel();
+    _sttSub?.cancel();
+    SttService.instance.stopListening();
   }
 
   @override
