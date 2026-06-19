@@ -12,6 +12,8 @@ class AppTheme {
   static const Color bgPage       = Color(0xFFF4F6FF);
   static const Color bgWhite      = Color(0xFFFFFFFF);
   static const Color bgCard       = Color(0xFFFFFFFF);
+  static const Color surface      = bgWhite;
+  static const Color background   = bgPage;
 
   static const Color triageRed    = Color(0xFFE53935);
   static const Color triageYellow = Color(0xFFFFC107);

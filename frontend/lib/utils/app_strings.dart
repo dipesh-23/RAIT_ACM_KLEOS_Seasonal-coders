@@ -295,5 +295,320 @@ class AppStrings {
       'mr': 'विश्लेषण अयशस्वी झाले. पुन्हा बोला.',
       'en': 'Analysis failed. Please speak again.',
     },
+
+    // ── Dashboard Screen ───────────────────────────────────────────────
+    'performance_dashboard': {
+      'hi': 'प्रदर्शन डैशबोर्ड',
+      'mr': 'कामगिरी डॅशबोर्ड',
+      'en': 'Performance Dashboard',
+    },
+    'today': {
+      'hi': 'आज',
+      'mr': 'आज',
+      'en': 'Today',
+    },
+    'this_week': {
+      'hi': 'इस हफ्ते',
+      'mr': 'या आठवड्यात',
+      'en': 'This Week',
+    },
+    'this_month': {
+      'hi': 'इस महीने',
+      'mr': 'या महिन्यात',
+      'en': 'This Month',
+    },
+    'total_patients_card': {
+      'hi': 'कुल मरीज़',
+      'mr': 'एकूण रुग्ण',
+      'en': 'Total Patients',
+    },
+    'immediate_referral': {
+      'hi': 'तुरंत रेफर',
+      'mr': 'तात्काळ संदर्भ',
+      'en': 'Immediate Referral',
+    },
+    'today_referral': {
+      'hi': 'आज रेफर',
+      'mr': 'आज संदर्भ',
+      'en': 'Today Referral',
+    },
+    'local_treatment': {
+      'hi': 'स्थानीय उपचार',
+      'mr': 'स्थानिक उपचार',
+      'en': 'Local Treatment',
+    },
+    'last_7_days': {
+      'hi': 'पिछले 7 दिन',
+      'mr': 'गेले 7 दिवस',
+      'en': 'Last 7 Days',
+    },
+    'referral_slip': {
+      'hi': 'रेफरल स्लिप',
+      'mr': 'रेफरल स्लिप',
+      'en': 'Referral Slip',
+    },
+    'pending_followup': {
+      'hi': 'पेंडिंग फॉलो-अप',
+      'mr': 'प्रलंबित पाठपुरावा',
+      'en': 'Pending Follow-up',
+    },
+    'most_common_symptom': {
+      'hi': 'सबसे आम लक्षण:',
+      'mr': 'सर्वात सामान्य लक्षण:',
+      'en': 'Most Common Symptom:',
+    },
+    'generate_monthly_report': {
+      'hi': '📄  मासिक रिपोर्ट बनाएं',
+      'mr': '📄  मासिक अहवाल तयार करा',
+      'en': '📄  Generate Monthly Report',
+    },
+
+    // ── Epidemic Alert Screen ──────────────────────────────────────────
+    'epidemic_alert': {
+      'hi': 'एपिडेमिक अलर्ट',
+      'mr': 'महामारी सूचना',
+      'en': 'Epidemic Alert',
+    },
+    'informed_anm': {
+      'hi': '📞  ANM को सूचित किया',
+      'mr': '📞  ANM ला सूचित केले',
+      'en': '📞  Informed ANM',
+    },
+    'no_unusual_pattern': {
+      'hi': 'कोई असामान्य पैटर्न नहीं',
+      'mr': 'कोणताही असामान्य नमुना नाही',
+      'en': 'No unusual pattern',
+    },
+    'alert_history': {
+      'hi': 'पिछले अलर्ट',
+      'mr': 'मागील सूचना',
+      'en': 'Alert History',
+    },
+    'no_previous_alerts': {
+      'hi': 'कोई पिछला अलर्ट नहीं है',
+      'mr': 'कोणतीही मागील सूचना नाही',
+      'en': 'No previous alerts',
+    },
+    'ok_btn': {
+      'hi': 'ठीक है',
+      'mr': 'ठीक आहे',
+      'en': 'OK',
+    },
+
+    // ── Pregnancy Tracker Screen ───────────────────────────────────────
+    'pregnancy_tracker': {
+      'hi': 'गर्भावस्था ट्रैकर',
+      'mr': 'गर्भधारणा ट्रॅकर',
+      'en': 'Pregnancy Tracker',
+    },
+    'patients': {
+      'hi': 'मरीज़',
+      'mr': 'रुग्ण',
+      'en': 'Patients',
+    },
+    'new_patient_tab': {
+      'hi': 'नई मरीज़',
+      'mr': 'नवीन रुग्ण',
+      'en': 'New Patient',
+    },
+    'no_patients_found': {
+      'hi': 'कोई मरीज़ नहीं',
+      'mr': 'कोणतेही रुग्ण आढळले नाहीत',
+      'en': 'No patients found',
+    },
+    'unknown': {
+      'hi': 'अज्ञात',
+      'mr': 'अज्ञात',
+      'en': 'Unknown',
+    },
+    'normal': {
+      'hi': 'सामान्य',
+      'mr': 'सामान्य',
+      'en': 'Normal',
+    },
+    'high_risk': {
+      'hi': 'उच्च जोखिम',
+      'mr': 'उच्च धोका',
+      'en': 'High Risk',
+    },
+    'medium_risk': {
+      'hi': 'मध्यम जोखिम',
+      'mr': 'मध्यम धोका',
+      'en': 'Medium Risk',
+    },
+    'week_prefix': {
+      'hi': 'सप्ताह',
+      'mr': 'आठवडा',
+      'en': 'Week',
+    },
+    'delivery_date': {
+      'hi': 'प्रसव तिथि:',
+      'mr': 'प्रसूतीची तारीख:',
+      'en': 'Delivery Date:',
+    },
+    'days_left': {
+      'hi': 'दिन बाकी',
+      'mr': 'दिवस शिल्लक',
+      'en': 'days left',
+    },
+    'patient_name_optional': {
+      'hi': 'मरीज़ का नाम (वैकल्पिक)',
+      'mr': 'रुग्णाचे नाव (पर्यायी)',
+      'en': 'Patient name (optional)',
+    },
+    'age': {
+      'hi': 'उम्र',
+      'mr': 'वय',
+      'en': 'Age',
+    },
+    'lmp_date_label': {
+      'hi': 'आखिरी माहवारी की तारीख',
+      'mr': 'शेवटची पाळी तारीख',
+      'en': 'Last Menstrual Period',
+    },
+    'select_date': {
+      'hi': 'तारीख चुनें',
+      'mr': 'तारीख निवडा',
+      'en': 'Select Date',
+    },
+    'create_profile': {
+      'hi': 'प्रोफाइल बनाएं',
+      'mr': 'प्रोफाइल तयार करा',
+      'en': 'Create Profile',
+    },
+    'danger_signs': {
+      'hi': 'खतरे के संकेत',
+      'mr': 'धोक्याची चिन्हे',
+      'en': 'Danger Signs',
+    },
+    'notes_optional': {
+      'hi': 'Notes (Optional)',
+      'mr': 'नोंदी (पर्यायी)',
+      'en': 'Notes (Optional)',
+    },
+    'record_visit': {
+      'hi': 'विज़िट दर्ज करें',
+      'mr': 'भेट नोंदवा',
+      'en': 'Record Visit',
+    },
+
+    // ── Followup Tracker Screen ────────────────────────────────────────
+    'followup': {
+      'hi': 'फॉलो-अप',
+      'mr': 'पाठपुरावा',
+      'en': 'Follow-up',
+    },
+    'referred': {
+      'hi': 'रेफर',
+      'mr': 'संदर्भित',
+      'en': 'Referred',
+    },
+    'reached': {
+      'hi': 'पहुंचे',
+      'mr': 'पोहोचले',
+      'en': 'Reached',
+    },
+    'treated': {
+      'hi': 'इलाज',
+      'mr': 'उपचार',
+      'en': 'Treated',
+    },
+    'returned': {
+      'hi': 'वापसी',
+      'mr': 'परतले',
+      'en': 'Returned',
+    },
+    'pending': {
+      'hi': 'पेंडिंग',
+      'mr': 'प्रलंबित',
+      'en': 'Pending',
+    },
+    'all': {
+      'hi': 'सभी',
+      'mr': 'सर्व',
+      'en': 'All',
+    },
+    'all_followups_complete': {
+      'hi': 'सभी फॉलो-अप पूरे हैं',
+      'mr': 'सर्व पाठपुरावा पूर्ण',
+      'en': 'All follow-ups complete',
+    },
+    'followup_complete_check': {
+      'hi': '✓ फॉलो-अप पूरा',
+      'mr': '✓ पाठपुरावा पूर्ण',
+      'en': '✓ Follow-up Complete',
+    },
+    'reached_hospital_q': {
+      'hi': '🏥  अस्पताल पहुंचे?',
+      'mr': '🏥  रुग्णालयात पोहोचले?',
+      'en': '🏥  Reached Hospital?',
+    },
+    'treatment_received_q': {
+      'hi': '💊  इलाज हुआ?',
+      'mr': '💊  उपचार मिळाले?',
+      'en': '💊  Treatment Received?',
+    },
+    'returned_home_q': {
+      'hi': '🏠  घर वापसी?',
+      'mr': '🏠  घरी परतले?',
+      'en': '🏠  Returned Home?',
+    },
+
+    // ── QR Sync Screen ─────────────────────────────────────────────────
+    'qr_sync': {
+      'hi': 'QR सिंक',
+      'mr': 'QR सिंक',
+      'en': 'QR Sync',
+    },
+    'share_data': {
+      'hi': 'डेटा भेजें',
+      'mr': 'डेटा पाठवा',
+      'en': 'Share Data',
+    },
+    'receive_data': {
+      'hi': 'डेटा पाएं',
+      'mr': 'डेटा मिळवा',
+      'en': 'Receive Data',
+    },
+    'which_period': {
+      'hi': 'किस अवधि का डेटा?',
+      'mr': 'कोणत्या कालावधीचा डेटा?',
+      'en': 'Which period?',
+    },
+    'show_qr_to_anm': {
+      'hi': 'ANM को यह QR दिखाएं',
+      'mr': 'ANM ला हा QR दाखवा',
+      'en': 'Show this QR to ANM',
+    },
+    'valid_30_mins': {
+      'hi': 'QR 30 मिनट के लिए मान्य है',
+      'mr': 'QR 30 मिनिटांसाठी वैध आहे',
+      'en': 'Valid for 30 mins',
+    },
+    'scan_qr': {
+      'hi': '📷 स्कैन करें',
+      'mr': '📷 स्कॅन करा',
+      'en': '📷 Scan QR',
+    },
+    'data_received': {
+      'hi': '✓ डेटा प्राप्त हुआ',
+      'mr': '✓ डेटा प्राप्त झाला',
+      'en': '✓ Data Received',
+    },
+    'save_report': {
+      'hi': '📄  रिपोर्ट सेव करें',
+      'mr': '📄  अहवाल जतन करा',
+      'en': '📄  Save Report',
+    },
+    'scan_again': {
+      'hi': '🔄  दोबारा स्कैन करें',
+      'mr': '🔄  पुन्हा स्कॅन करा',
+      'en': '🔄  Scan Again',
+    },
+    'invalid_qr': {
+      'hi': '❌ अमान्य QR',
+      'mr': '❌ अवैध QR',
+      'en': '❌ Invalid QR Code',
+    },
   };
 }

@@ -24,11 +24,14 @@ class TriageEngine {
   final Map<String, List<double>> _anchorEmbeddings = {};
 
   /// Flat list of all anchor entries. Each map contains:
+  ///   'key'      → String
   ///   'phrase'   → String
   ///   'category' → String ("RED" | "YELLOW" | "GREEN")
   ///   'weight'   → int
   ///   'hindi'    → String
   final List<Map<String, dynamic>> _anchors = [];
+  final List<Map<String, dynamic>> _combinationRules = [];
+  Map<String, dynamic> _negationPatterns = {};
 
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
@@ -102,19 +105,25 @@ class TriageEngine {
     final Map<String, dynamic> data =
         jsonDecode(rawJson) as Map<String, dynamic>;
 
-    // ── 2. Flatten all three categories into _anchors ────────────────────────
-    for (final category in ['RED', 'YELLOW', 'GREEN']) {
-      final entries = data[category] as List<dynamic>;
-      for (final entry in entries) {
-        final concept = entry as Map<String, dynamic>;
-        _anchors.add({
-          'phrase':   concept['phrase']  as String,
-          'category': category,
-          'weight':   concept['weight']  as int,
-          'hindi':    concept['hindi']   as String,
-        });
-      }
+    // ── 2. Parse anchors, combination_rules, and negation_patterns ───────────
+    final anchorsList = data['anchors'] as List<dynamic>;
+    for (final entry in anchorsList) {
+      final concept = entry as Map<String, dynamic>;
+      _anchors.add({
+        'key':      concept['key'] as String,
+        'phrase':   concept['concept']  as String,
+        'category': concept['category'] as String,
+        'weight':   (concept['weight'] as num).toInt(),
+        'hindi':    concept['hindi_question'] as String,
+      });
     }
+
+    final rulesList = data['combination_rules'] as List<dynamic>;
+    for (final rule in rulesList) {
+      _combinationRules.add(rule as Map<String, dynamic>);
+    }
+
+    _negationPatterns = data['negation_patterns'] as Map<String, dynamic>;
 
     // ── 3. Pre-compute embeddings for every anchor phrase ────────────────────
     for (final anchor in _anchors) {
@@ -213,6 +222,7 @@ class TriageEngine {
     final detected = <DetectedConcept>[];
 
     for (final anchor in _anchors) {
+      final key       = anchor['key']      as String;
       final phrase    = anchor['phrase']   as String;
       final category  = anchor['category'] as String;
       final weight    = anchor['weight']   as int;
@@ -223,13 +233,12 @@ class TriageEngine {
 
       if (similarity >= threshold) {
         detected.add(DetectedConcept(
-          conceptKey:           phrase,
+          conceptKey:           key,
           category:             category,
           similarity:           similarity,
           weight:               weight,
           hindiLabel:           hindi,
-          confirmationQuestion: confirmationQuestions[phrase] ??
-              confirmationQuestions['__unknown__']!,
+          confirmationQuestion: hindi,
         ));
       }
     }
@@ -296,6 +305,61 @@ class TriageEngine {
     return (similarity + boost).clamp(0.0, 1.0);
   }
 
+  // ── Rule engines ─────────────────────────────────────────────────────────────
+
+  double _applyNegationPenalty(
+    String transcript,
+    String conceptKey,
+    double similarityScore,
+  ) {
+    if (_negationPatterns.isEmpty) return similarityScore;
+
+    final allNegations = [
+      ...(_negationPatterns['hindi'] as List).cast<String>(),
+      ...(_negationPatterns['marathi'] as List).cast<String>(),
+      ...(_negationPatterns['english'] as List).cast<String>(),
+    ];
+    final transcriptLower = transcript.toLowerCase();
+    for (String negation in allNegations) {
+      if (transcriptLower.contains(negation)) {
+        return similarityScore - (_negationPatterns['score_reduction'] as num).toDouble();
+      }
+    }
+    return similarityScore;
+  }
+
+  Map<String, dynamic>? _applyCombinationRules(
+    List<DetectedConcept> confirmedConcepts,
+    String ageGroup,
+  ) {
+    for (final rule in _combinationRules) {
+      if (rule['condition'] == 'ageGroup == NEWBORN') {
+        if (ageGroup.toUpperCase() == 'NEWBORN' || ageGroup.toUpperCase() == 'INFANT') {
+          if (confirmedConcepts.any((c) => c.category == 'YELLOW')) {
+            return rule;
+          }
+        }
+      }
+
+      if (rule['concepts'] == null) continue;
+      final concepts = rule['concepts'] as List<dynamic>;
+      if (concepts.contains('ANY_YELLOW')) {
+        continue; // Handled by newborn rule
+      }
+
+      int matches = confirmedConcepts
+          .where((c) => concepts.contains(c.conceptKey) && c.confirmed)
+          .length;
+
+      if (matches >= (rule['minimum_matches'] as num).toInt()) {
+        if (rule['escalate_to'] == 'RED') {
+          return rule;
+        }
+      }
+    }
+    return null;
+  }
+
   // ── Public analysis API ───────────────────────────────────────────────────────
 
   /// Analyses [transcript] in context of [ageGroup] and [duration] and
@@ -338,6 +402,7 @@ class TriageEngine {
     final detected = <DetectedConcept>[];
 
     for (final anchor in _anchors) {
+      final key      = anchor['key']      as String;
       final phrase   = anchor['phrase']   as String;
       final category = anchor['category'] as String;
       final weight   = anchor['weight']   as int;
@@ -352,23 +417,34 @@ class TriageEngine {
         if (sim > maxSimilarity) maxSimilarity = sim;
       }
 
+      final penalizedScore = _applyNegationPenalty(transcript, key, maxSimilarity);
+
       // Apply age/duration context modifiers
       final adjusted = applyModifiers(
-        maxSimilarity,
+        penalizedScore,
         ageGroup: ageGroup,
         duration: duration,
       );
 
       if (adjusted >= threshold) {
         detected.add(DetectedConcept(
-          conceptKey:           phrase,
+          conceptKey:           key,
           category:             category,
           similarity:           adjusted,
           weight:               weight,
           hindiLabel:           hindi,
-          confirmationQuestion: confirmationQuestions[phrase] ??
-              confirmationQuestions['__unknown__']!,
+          confirmationQuestion: hindi,
         ));
+      }
+    }
+
+    // Deduplicate severity for fever
+    final feverKeys = ['fever_mild', 'fever_high', 'fever_with_seizure'];
+    final feverConcepts = detected.where((c) => feverKeys.contains(c.conceptKey)).toList();
+    if (feverConcepts.length > 1) {
+      feverConcepts.sort((a, b) => b.similarity.compareTo(a.similarity));
+      for (int i = 1; i < feverConcepts.length; i++) {
+        detected.remove(feverConcepts[i]);
       }
     }
 
@@ -500,6 +576,19 @@ class TriageEngine {
 
     // ── Reason string ────────────────────────────────────────────────────────
     if (reasons.isEmpty) reasons.add('कोई गंभीर लक्षण नहीं मिला');
+
+    // ── Apply Combination Rules ──────────────────────────────────────────────
+    final triggeredRule = _applyCombinationRules(concepts, ageGroup);
+    if (triggeredRule != null) {
+      category = TriageCategory.red;
+      rec = 'Immediate referral required.';
+      recHi = 'तुरंत अस्पताल भेजें — यह गंभीर मामला है।';
+      reqRef = true;
+      final ruleReason = triggeredRule['hindi_reason'] as String;
+      if (!reasons.contains(ruleReason)) {
+        reasons.add(ruleReason);
+      }
+    }
 
     return TriageResult(
       sessionId: sessionId,
