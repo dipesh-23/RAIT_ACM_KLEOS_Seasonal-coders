@@ -5,6 +5,7 @@ import 'dart:async';
 import '../app_theme.dart';
 import '../providers/triage_provider.dart';
 import '../services/stt_service.dart';
+import '../utils/app_strings.dart';
 import 'transcription_screen.dart';
 
 class VoiceScreen extends StatefulWidget {
@@ -46,6 +47,10 @@ class _VoiceScreenState extends State<VoiceScreen>
   }
 
   void _toggleRecording() {
+    final lang = context.read<TriageProvider>().selectedLanguage;
+    final localeMap = {'hi': 'hi-IN', 'mr': 'mr-IN', 'en': 'en-IN'};
+    final sttLocale = localeMap[lang] ?? 'hi-IN';
+
     setState(() => _isRecording = !_isRecording);
     context.read<TriageProvider>().setRecording(_isRecording);
 
@@ -55,7 +60,7 @@ class _VoiceScreenState extends State<VoiceScreen>
       _sttSub = SttService.instance.transcriptStream.listen((text) {
         setState(() => _liveText = text);
       });
-      SttService.instance.startListening();
+      SttService.instance.startListening(locale: sttLocale);
     } else {
       _sttSub?.cancel();
       SttService.instance.stopListening();
@@ -80,6 +85,7 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<TriageProvider>().selectedLanguage;
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D1A),
       body: SafeArea(
@@ -103,7 +109,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Text('लक्षण रिकॉर्ड करें',
+                  Text(AppStrings.get('voice_screen_title', lang),
                       style: GoogleFonts.poppins(
                           color: Colors.white, fontSize: 18,
                           fontWeight: FontWeight.w700)),
@@ -117,10 +123,10 @@ class _VoiceScreenState extends State<VoiceScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Instruction text
-                  Text('बोलें —', style: GoogleFonts.poppins(
+                  Text(AppStrings.get('speak_instruction', lang), style: GoogleFonts.poppins(
                       color: Colors.white, fontSize: 28,
                       fontWeight: FontWeight.w700)),
-                  Text('मरीज के लक्षण बताएं',
+                  Text(AppStrings.get('describe_symptoms', lang),
                       style: GoogleFonts.poppins(
                           color: Colors.white70, fontSize: 18,
                           fontWeight: FontWeight.w400)),
@@ -186,7 +192,7 @@ class _VoiceScreenState extends State<VoiceScreen>
 
                   const SizedBox(height: 20),
                   Text(
-                    _isRecording ? 'रिकॉर्डिंग हो रही है...' : 'माइक बटन दबाएं',
+                    _isRecording ? AppStrings.get('listening', lang) : AppStrings.get('press_mic', lang),
                     style: GoogleFonts.poppins(
                         color: _isRecording ? AppTheme.primaryLight : Colors.white38,
                         fontSize: 13, fontWeight: FontWeight.w500),
@@ -212,7 +218,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                       Icon(Icons.graphic_eq_rounded,
                           color: AppTheme.primaryLight, size: 16),
                       const SizedBox(width: 6),
-                      Text('लाइव ट्रांसक्रिप्शन',
+                      Text(AppStrings.get('live_transcription', lang),
                           style: GoogleFonts.poppins(
                               color: AppTheme.primaryLight, fontSize: 12,
                               fontWeight: FontWeight.w600)),
@@ -223,7 +229,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                     width: double.infinity,
                     constraints: const BoxConstraints(minHeight: 60),
                     child: _liveText.isEmpty
-                        ? Text('यहाँ आपकी बातें दिखेंगी...',
+                        ? Text(AppStrings.get('words_placeholder', lang),
                             style: GoogleFonts.poppins(
                                 color: Colors.white24, fontSize: 14,
                                 fontStyle: FontStyle.italic))
@@ -248,7 +254,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                     child: OutlinedButton.icon(
                       onPressed: _retry,
                       icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text('दोबारा बोलें',
+                      label: Text(AppStrings.get('rerecord', lang),
                           style: GoogleFonts.poppins(fontSize: 14,
                               fontWeight: FontWeight.w600)),
                       style: OutlinedButton.styleFrom(
@@ -265,7 +271,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                     child: ElevatedButton.icon(
                       onPressed: _liveText.isNotEmpty ? _proceed : null,
                       icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                      label: Text('आगे बढ़ें',
+                      label: Text(AppStrings.get('continue_btn', lang),
                           style: GoogleFonts.poppins(fontSize: 14,
                               fontWeight: FontWeight.w600)),
                       style: ElevatedButton.styleFrom(

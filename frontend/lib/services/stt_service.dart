@@ -45,9 +45,12 @@ class SttService {
           pushTranscript(val.recognizedWords);
         }
       },
-      localeId: locale,
-      cancelOnError: false,
-      partialResults: true,
+      listenOptions: stt.SpeechListenOptions(
+        onDevice: true,
+        localeId: locale,
+        cancelOnError: false,
+        partialResults: true,
+      ),
     );
   }
 

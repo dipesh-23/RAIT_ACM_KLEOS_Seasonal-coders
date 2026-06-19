@@ -4,6 +4,24 @@ enum AgeGroup { child, youth, adult, elderly }
 enum SymptomDuration { today, twothreedays, fourplus }
 
 extension AgeGroupLabel on AgeGroup {
+  String labelForLang(String lang) {
+    if (lang == 'hi') return hindi;
+    if (lang == 'mr') {
+      switch (this) {
+        case AgeGroup.child:   return 'लहान मूल';
+        case AgeGroup.youth:   return 'तरुण';
+        case AgeGroup.adult:   return 'प्रौढ';
+        case AgeGroup.elderly: return 'वृद्ध';
+      }
+    }
+    switch (this) {
+      case AgeGroup.child:   return 'Child';
+      case AgeGroup.youth:   return 'Youth';
+      case AgeGroup.adult:   return 'Adult';
+      case AgeGroup.elderly: return 'Elderly';
+    }
+  }
+
   String get hindi {
     switch (this) {
       case AgeGroup.child:   return 'बच्चा';
@@ -15,6 +33,22 @@ extension AgeGroupLabel on AgeGroup {
 }
 
 extension SymptomDurationLabel on SymptomDuration {
+  String labelForLang(String lang) {
+    if (lang == 'hi') return hindi;
+    if (lang == 'mr') {
+      switch (this) {
+        case SymptomDuration.today:        return 'आज';
+        case SymptomDuration.twothreedays: return '२-३ दिवस';
+        case SymptomDuration.fourplus:     return '४+ दिवस';
+      }
+    }
+    switch (this) {
+      case SymptomDuration.today:        return 'Today';
+      case SymptomDuration.twothreedays: return '2-3 Days';
+      case SymptomDuration.fourplus:     return '4+ Days';
+    }
+  }
+
   String get hindi {
     switch (this) {
       case SymptomDuration.today:        return 'आज';

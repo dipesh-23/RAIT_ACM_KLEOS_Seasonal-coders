@@ -5,6 +5,7 @@ import '../models/triage_result.dart';
 import '../models/detected_concept.dart';
 import '../services/database_service.dart';
 import '../services/triage_engine.dart';
+import '../utils/app_strings.dart';
 
 class TriageProvider extends ChangeNotifier {
   SessionModel? _currentSession;
@@ -12,6 +13,8 @@ class TriageProvider extends ChangeNotifier {
   String _transcribedText = '';
   bool _isRecording = false;
   bool _isProcessing = false;
+  String _selectedLanguage = 'hi';
+
   
   // Dynamic Confirmation state
   List<DetectedConcept> _detectedConcepts = [];
@@ -25,10 +28,16 @@ class TriageProvider extends ChangeNotifier {
   bool          get isProcessing      => _isProcessing;
   int           get confirmationStep  => _currentConfirmationStep;
   List<bool?>   get confirmationAnswers => _confirmationAnswers;
+  String        get selectedLanguage  => _selectedLanguage;
+
+  void setLanguage(String lang) {
+    _selectedLanguage = lang;
+    notifyListeners();
+  }
 
   List<String> get confirmationQuestions {
-    final questions = _detectedConcepts.map((c) => c.confirmationQuestion).toList();
-    questions.add('क्या मरीज की हालत बहुत गंभीर लग रही है?'); // Mandatory safety net
+    final questions = _detectedConcepts.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
+    questions.add(AppStrings.get('safety_net_q', _selectedLanguage)); // Mandatory safety net
     return questions;
   }
 

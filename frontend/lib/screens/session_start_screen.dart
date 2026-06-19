@@ -5,6 +5,7 @@ import '../app_theme.dart';
 import '../models/session_model.dart';
 import '../providers/triage_provider.dart';
 import '../services/onboarding_service.dart';
+import '../utils/app_strings.dart';
 import 'voice_screen.dart';
 
 class SessionStartScreen extends StatefulWidget {
@@ -28,10 +29,11 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
   }
 
   void _startSession(BuildContext context) {
+    final lang = context.read<TriageProvider>().selectedLanguage;
     if (_selectedAge == null || _selectedDuration == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('कृपया सभी विकल्प चुनें',
+          content: Text(AppStrings.get('fill_all_options', lang),
               style: GoogleFonts.poppins(color: Colors.white)),
           backgroundColor: AppTheme.primary,
           behavior: SnackBarBehavior.floating,
@@ -57,12 +59,13 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<TriageProvider>().selectedLanguage;
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(context, lang),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
@@ -81,9 +84,9 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('नमस्ते,', style: GoogleFonts.poppins(
+                          Text(AppStrings.get('hello', lang), style: GoogleFonts.poppins(
                               color: Colors.white70, fontSize: 14)),
-                          Text('ASHA कार्यकर्ता', style: GoogleFonts.poppins(
+                          Text(AppStrings.get('asha_worker', lang), style: GoogleFonts.poppins(
                               color: Colors.white, fontSize: 22,
                               fontWeight: FontWeight.w700)),
                           const SizedBox(height: 8),
@@ -94,7 +97,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text('नया मरीज ट्राइएज शुरू करें',
+                            child: Text(AppStrings.get('new_patient_triage', lang),
                                 style: GoogleFonts.poppins(
                                     color: Colors.white, fontSize: 12,
                                     fontWeight: FontWeight.w500)),
@@ -106,13 +109,13 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                     const SizedBox(height: 24),
 
                     // ── Worker Name ──
-                    _sectionLabel('कार्यकर्ता का नाम दर्ज करें'),
+                    _sectionLabel(AppStrings.get('worker_name_label', lang)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _nameController,
                       style: GoogleFonts.poppins(color: AppTheme.textDark, fontSize: 15),
                       decoration: InputDecoration(
-                        hintText: 'यहाँ नाम लिखें...',
+                        hintText: AppStrings.get('worker_name_hint', lang),
                         prefixIcon: Icon(Icons.person_outline_rounded,
                             color: AppTheme.primary, size: 20),
                       ),
@@ -121,27 +124,27 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                     const SizedBox(height: 22),
 
                     // ── Age Group ──
-                    _sectionLabel('मरीज की आयु वर्ग'),
+                    _sectionLabel(AppStrings.get('patient_age_label', lang)),
                     const SizedBox(height: 10),
-                    _buildAgeChips(),
+                    _buildAgeChips(lang),
 
                     const SizedBox(height: 22),
 
                     // ── Symptom Duration ──
-                    _sectionLabel('लक्षण कितने दिन से'),
+                    _sectionLabel(AppStrings.get('symptom_duration_label', lang)),
                     const SizedBox(height: 10),
-                    _buildDurationChips(),
+                    _buildDurationChips(lang),
 
                     const SizedBox(height: 28),
 
                     // ── Recent Stats Row ──
-                    _buildStatsRow(),
+                    _buildStatsRow(lang),
 
                     const SizedBox(height: 32),
 
                     // ── Start Button ──
                     AppTheme.gradientButton(
-                      label: 'शुरू करें  →',
+                      label: AppStrings.get('start_btn', lang),
                       onTap: () => _startSession(context),
                       icon: Icons.play_arrow_rounded,
                     ),
@@ -156,7 +159,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context, String lang) {
     return Container(
       color: AppTheme.bgWhite,
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
@@ -165,11 +168,34 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
           Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 26),
           const SizedBox(width: 12),
           Expanded(
-            child: Text('ASHA ट्राइएज',
+            child: Text(AppStrings.get('asha_triage', lang),
                 style: GoogleFonts.poppins(
                     fontSize: 18, fontWeight: FontWeight.w700,
                     color: AppTheme.textDark)),
           ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButton<String>(
+              value: lang,
+              underline: const SizedBox(),
+              icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 18),
+              style: GoogleFonts.poppins(
+                  color: AppTheme.primary, fontSize: 13, fontWeight: FontWeight.w600),
+              items: const [
+                DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
+                DropdownMenuItem(value: 'mr', child: Text('मराठी')),
+                DropdownMenuItem(value: 'en', child: Text('English')),
+              ],
+              onChanged: (val) {
+                if (val != null) context.read<TriageProvider>().setLanguage(val);
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
           Container(
             width: 38, height: 38,
             decoration: BoxDecoration(
@@ -188,7 +214,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
         color: AppTheme.textDark, fontSize: 14, fontWeight: FontWeight.w600));
   }
 
-  Widget _buildAgeChips() {
+  Widget _buildAgeChips(String lang) {
     return Wrap(
       spacing: 10,
       children: AgeGroup.values.map((age) {
@@ -207,7 +233,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                   width: 1.5),
               boxShadow: selected ? AppTheme.buttonShadow : AppTheme.cardShadow,
             ),
-            child: Text(age.hindi,
+            child: Text(age.labelForLang(lang),
                 style: GoogleFonts.poppins(
                     color: selected ? Colors.white : AppTheme.textMedium,
                     fontWeight: FontWeight.w600, fontSize: 13)),
@@ -217,7 +243,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
     );
   }
 
-  Widget _buildDurationChips() {
+  Widget _buildDurationChips(String lang) {
     return Wrap(
       spacing: 10,
       children: SymptomDuration.values.map((dur) {
@@ -236,7 +262,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                   width: 1.5),
               boxShadow: selected ? AppTheme.buttonShadow : AppTheme.cardShadow,
             ),
-            child: Text(dur.hindi,
+            child: Text(dur.labelForLang(lang),
                 style: GoogleFonts.poppins(
                     color: selected ? Colors.white : AppTheme.textMedium,
                     fontWeight: FontWeight.w600, fontSize: 13)),
@@ -246,16 +272,16 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(String lang) {
     return Row(
       children: [
-        Expanded(child: _statCard('12', 'आज के मरीज', Icons.people_alt_rounded,
+        Expanded(child: _statCard('12', AppStrings.get('today_patients', lang), Icons.people_alt_rounded,
             const Color(0xFF6C63FF))),
         const SizedBox(width: 12),
-        Expanded(child: _statCard('3', 'गंभीर केस', Icons.warning_amber_rounded,
+        Expanded(child: _statCard('3', AppStrings.get('critical_cases', lang), Icons.warning_amber_rounded,
             AppTheme.triageRed)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard('9', 'सामान्य', Icons.check_circle_outline_rounded,
+        Expanded(child: _statCard('9', AppStrings.get('normal_cases', lang), Icons.check_circle_outline_rounded,
             AppTheme.triageGreen)),
       ],
     );
