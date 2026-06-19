@@ -102,8 +102,8 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   void _toggleRecording() {
     final lang = context.read<TriageProvider>().selectedLanguage;
-    final localeMap = {'hi': 'hi_IN', 'mr': 'mr_IN', 'en': 'en_IN'};
-    final sttLocale = localeMap[lang] ?? 'hi_IN';
+    final localeMap = {'hi': 'hi-IN', 'mr': 'mr-IN', 'en': 'en-IN'};
+    final sttLocale = localeMap[lang] ?? 'hi-IN';
 
     if (!_isRecording) {
       setState(() {

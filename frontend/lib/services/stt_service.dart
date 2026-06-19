@@ -89,7 +89,10 @@ class SttService {
         _currentOnError!(message);
       }
       openSpeechLanguageSettings();
-    } else if (val.errorMsg == 'error_language_unavailable' || val.errorMsg == 'error_client') {
+    } else if (val.errorMsg == 'error_language_unavailable' || 
+               val.errorMsg == 'error_client' || 
+               val.errorMsg == 'error_server_disconnected' || 
+               val.errorMsg == 'error_network') {
       _isListening = false;
       _speech.stop();
 
@@ -129,7 +132,7 @@ class SttService {
       };
 
       await _speech.listen(
-        onDevice: false,
+        onDevice: true,
         localeId: localeId,
         partialResults: true,
       );
@@ -196,8 +199,6 @@ class SttService {
     }
   }
 
-  // Resolve the best available locale: requested → hi_IN fallback.
-  // Returns null if no supported locale is found.
   Future<String?> _resolveLocale(String requested) async {
     final systemLocales = await _speech.locales();
     final ids = systemLocales.map((l) => l.localeId).toSet();
@@ -207,19 +208,20 @@ class SttService {
       return requested;
     }
 
-    // Prompt 5: mr_IN fallback to hi_IN
-    if (requested == 'mr_IN') {
-      const fallback = 'hi_IN';
-      if (ids.contains(fallback)) {
-        debugPrint('[STT ACTIVE LOCALE] mr_IN not found — falling back to hi_IN');
-        return fallback;
+    final swapped = requested.contains('_') ? requested.replaceAll('_', '-') : requested.replaceAll('-', '_');
+    if (ids.contains(swapped)) {
+      return swapped;
+    }
+
+    final langOnly = requested.split(RegExp(r'[-_]')).first;
+    for (var id in ids) {
+      if (id == langOnly || id.startsWith('${langOnly}_') || id.startsWith('$langOnly-')) {
+        return id;
       }
     }
 
-    // No suitable locale found
-    debugPrint('[STT ACTIVE LOCALE] No matching locale found for: $requested');
-    debugPrint('[STT ACTIVE LOCALE] Available locales: ${ids.where((id) => id.startsWith('hi') || id.startsWith('mr') || id.startsWith('en')).toList()}');
-    return null;
+    // Always try the requested one directly even if not listed
+    return requested;
   }
 
   Future<void> startListening({
@@ -265,7 +267,8 @@ class SttService {
           pushTranscript(val.recognizedWords);
         }
       },
-      onDevice: false,
+      onDevice: true,
+      listenMode: stt.ListenMode.dictation,
       localeId: activeLocale,
       cancelOnError: false,
       partialResults: true,
