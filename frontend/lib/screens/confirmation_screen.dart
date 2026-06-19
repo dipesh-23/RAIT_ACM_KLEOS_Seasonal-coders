@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../app_theme.dart';
 import '../providers/triage_provider.dart';
+import '../utils/app_strings.dart';
 import 'result_screen.dart';
 
 class ConfirmationScreen extends StatefulWidget {
@@ -33,6 +34,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
   }
 
   Widget _buildBody(BuildContext context, TriageProvider provider, List<dynamic> concepts) {
+    final lang = provider.selectedLanguage;
 
     if (index >= concepts.length) {
       // Show full screen safety net question
@@ -45,7 +47,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'क्या मरीज की हालत आपको बहुत गंभीर लग रही है?',
+                  AppStrings.get('safety_net_q', lang),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 26,
@@ -68,7 +70,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                     ),
                     onPressed: () => _onAnswer(true),
                     child: Text(
-                      'हाँ',
+                      AppStrings.get('yes', lang),
                       style: GoogleFonts.poppins(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -91,7 +93,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                     ),
                     onPressed: () => _onAnswer(false),
                     child: Text(
-                      'नहीं',
+                      AppStrings.get('no', lang),
                       style: GoogleFonts.poppins(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -110,7 +112,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     // Standard question with progress indicator
     final total = concepts.length;
     final progress = (index + 1) / total;
-    final currentQuestionText = concepts[index].confirmationQuestion;
+    final currentQuestionText = concepts[index].getQuestionForLang(lang);
 
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
@@ -144,7 +146,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                         ),
                       ),
                       const Spacer(),
-                      Text('प्रश्न ${index + 1}/$total',
+                      Text('${AppStrings.get('question_prefix', lang)} ${index + 1}/$total',
                           style: GoogleFonts.poppins(
                               color: AppTheme.primary, fontSize: 14,
                               fontWeight: FontWeight.w700)),
@@ -194,7 +196,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                         ),
                         onPressed: () => _onAnswer(true),
                         child: Text(
-                          'हाँ',
+                          AppStrings.get('yes', lang),
                           style: GoogleFonts.poppins(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
@@ -217,7 +219,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                         ),
                         onPressed: () => _onAnswer(false),
                         child: Text(
-                          'नहीं',
+                          AppStrings.get('no', lang),
                           style: GoogleFonts.poppins(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,

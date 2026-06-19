@@ -52,6 +52,42 @@ class TriageResult {
     }
   }
 
+  String levelTitleForLang(String lang) {
+    if (lang == 'mr') {
+      switch (category) {
+        case TriageCategory.red:    return 'गंभीर स्थिती';
+        case TriageCategory.yellow: return 'सतर्क राहा';
+        case TriageCategory.green:  return 'सामान्य स्थिती';
+      }
+    }
+    if (lang == 'en') {
+      switch (category) {
+        case TriageCategory.red:    return 'Critical Condition';
+        case TriageCategory.yellow: return 'Be Cautious';
+        case TriageCategory.green:  return 'Normal Condition';
+      }
+    }
+    return levelHindi;
+  }
+
+  String levelSubtitleForLang(String lang) {
+    if (lang == 'mr') {
+      switch (category) {
+        case TriageCategory.red:    return 'त्वरित रेफर करा';
+        case TriageCategory.yellow: return 'पीएचसी मध्ये तपासणी करा';
+        case TriageCategory.green:  return 'घरी काळजी घ्या';
+      }
+    }
+    if (lang == 'en') {
+      switch (category) {
+        case TriageCategory.red:    return 'Refer Immediately';
+        case TriageCategory.yellow: return 'Check at PHC';
+        case TriageCategory.green:  return 'Care at Home';
+      }
+    }
+    return levelSubtitle;
+  }
+
   String categoryLabelForLang(String lang) {
     if (lang == 'hi') return categoryLabel;
     if (lang == 'mr') {

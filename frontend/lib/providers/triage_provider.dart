@@ -97,6 +97,7 @@ class TriageProvider extends ChangeNotifier {
 
   Future<void> analyzeTranscript() async {
     isAnalyzing = true;
+    _currentResult = null;
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 500)); // allow UI to paint

@@ -5,6 +5,7 @@ import '../app_theme.dart';
 import '../providers/triage_provider.dart';
 import '../models/session_model.dart';
 import '../services/followup_service.dart';
+import '../utils/app_strings.dart';
 import 'session_start_screen.dart';
 
 class ReferralScreen extends StatelessWidget {
@@ -22,7 +23,7 @@ class ReferralScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppTheme.bgWhite,
         elevation: 0,
-        title: Text('रेफरल स्लिप',
+        title: Text(AppStrings.get('referral_slip', provider.selectedLanguage),
             style: GoogleFonts.poppins(
                 color: AppTheme.textDark, fontWeight: FontWeight.w700)),
         leading: IconButton(
@@ -86,7 +87,7 @@ class ReferralScreen extends StatelessWidget {
                         const Icon(Icons.local_hospital_rounded,
                             color: Colors.white, size: 36),
                         const SizedBox(height: 8),
-                        Text('ASHA तत्काल रेफरल',
+                        Text(AppStrings.get('asha_triage', provider.selectedLanguage),
                             style: GoogleFonts.poppins(
                                 color: Colors.white, fontSize: 18,
                                 fontWeight: FontWeight.w700)),
@@ -102,25 +103,25 @@ class ReferralScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(18),
                     child: Column(
                       children: [
-                        _infoRow('रेफरल कोड (Session Code)',
+                        _infoRow('Session Code',
                             session?.sessionCode ?? '--'),
                         _divider(),
-                        _infoRow('ASHA कार्यकर्ता',
+                        _infoRow(AppStrings.get('asha_worker', provider.selectedLanguage),
                             session?.ashaWorkerName ?? 'ASHA Worker'),
                         _divider(),
-                        _infoRow('मरीज आयु वर्ग',
-                            session?.patientAgeGroup?.labelHi ?? '--'),
+                        _infoRow(AppStrings.get('patient_age_label', provider.selectedLanguage),
+                            session?.patientAgeGroup?.name ?? '--'),
                         _divider(),
-                        _infoRow('लक्षण अवधि',
-                            session?.symptomDuration?.labelHi ?? '--'),
+                        _infoRow(AppStrings.get('symptom_duration_label', provider.selectedLanguage),
+                            session?.symptomDuration?.name ?? '--'),
                         _divider(),
-                        _infoRow('ट्राइएज स्थिति',
-                            result?.categoryLabel ?? 'गंभीर (Red)'),
+                        _infoRow('Triage Level',
+                            result?.categoryLabelForLang(provider.selectedLanguage) ?? '--'),
                         _divider(),
-                        _infoRow('दिनांक',
+                        _infoRow('Date',
                             '${now.day}/${now.month}/${now.year}'),
                         _divider(),
-                        _infoRow('समय',
+                        _infoRow('Time',
                             '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
                         const SizedBox(height: 16),
                         Container(
@@ -134,17 +135,19 @@ class ReferralScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('लक्षण / Symptoms (Confirmed Only):',
+                              Text('Symptoms (Confirmed):',
                                   style: GoogleFonts.poppins(
                                       color: AppTheme.triageRed, fontSize: 12,
                                       fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
                               Builder(
                                 builder: (context) {
-                                  String symptomsText = 'कोई लक्षण नहीं';
+                                  String symptomsText = '--';
+                                  final concepts = provider.detectedConcepts.where((c) => c.confirmed).toList();
                                   
-                                  // The result.matchedSymptoms has the list of confirmed concept hindiLabels (or reasons) from triage engine
-                                  if (result != null && result.matchedSymptoms.isNotEmpty) {
+                                  if (concepts.isNotEmpty) {
+                                    symptomsText = concepts.map((c) => c.getLabelForLang(provider.selectedLanguage)).join(', ');
+                                  } else if (result != null && result.matchedSymptoms.isNotEmpty) {
                                     symptomsText = result.matchedSymptoms.join(', ');
                                   }
                                   
@@ -160,7 +163,7 @@ class ReferralScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text('सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
+                        Text('Immediate referral to Government Health Center / PHC',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.poppins(
                                 color: AppTheme.textMedium, fontSize: 12,
@@ -175,7 +178,7 @@ class ReferralScreen extends StatelessWidget {
             const SizedBox(height: 24),
 
             AppTheme.gradientButton(
-              label: 'नया मरीज शुरू करें',
+              label: AppStrings.get('new_patient_triage', provider.selectedLanguage),
               onTap: () {
                 context.read<TriageProvider>().reset();
                 Navigator.of(context).pushAndRemoveUntil(

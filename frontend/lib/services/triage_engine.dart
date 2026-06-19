@@ -115,6 +115,8 @@ class TriageEngine {
         'category': concept['category'] as String,
         'weight':   (concept['weight'] as num).toInt(),
         'hindi':    concept['hindi_question'] as String,
+        'marathi':  (concept['marathi_question'] ?? concept['hindi_question']) as String,
+        'english':  (concept['english_question'] ?? concept['hindi_question']) as String,
       });
     }
 
@@ -227,6 +229,8 @@ class TriageEngine {
       final category  = anchor['category'] as String;
       final weight    = anchor['weight']   as int;
       final hindi     = anchor['hindi']    as String;
+      final marathi   = anchor['marathi']  as String;
+      final english   = anchor['english']  as String;
 
       final anchorEmb = _anchorEmbeddings[phrase]!;
       final similarity = cosine(transcriptEmbedding, anchorEmb);
@@ -238,7 +242,9 @@ class TriageEngine {
           similarity:           similarity,
           weight:               weight,
           hindiLabel:           hindi,
-          confirmationQuestion: hindi,
+          marathiLabel:         marathi,
+          englishLabel:         english,
+          confirmationQuestion: hindi, // fallback
         ));
       }
     }
@@ -398,7 +404,7 @@ class TriageEngine {
         .toList();
 
     // ── 3-5. Score every anchor against all chunks ───────────────────────────
-    const double threshold = 0.50;
+    const double threshold = 0.40;
     final detected = <DetectedConcept>[];
 
     for (final anchor in _anchors) {
@@ -407,6 +413,8 @@ class TriageEngine {
       final category = anchor['category'] as String;
       final weight   = anchor['weight']   as int;
       final hindi    = anchor['hindi']    as String;
+      final marathi  = anchor['marathi']  as String;
+      final english  = anchor['english']  as String;
 
       final anchorEmb = _anchorEmbeddings[phrase]!;
 
@@ -433,7 +441,9 @@ class TriageEngine {
           similarity:           adjusted,
           weight:               weight,
           hindiLabel:           hindi,
-          confirmationQuestion: hindi,
+          marathiLabel:         marathi,
+          englishLabel:         english,
+          confirmationQuestion: hindi, // Fallback
         ));
       }
     }

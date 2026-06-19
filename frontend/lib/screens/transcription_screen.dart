@@ -7,6 +7,8 @@ import '../utils/app_strings.dart';
 import 'confirmation_screen.dart';
 import 'voice_screen.dart';
 import 'result_screen.dart';
+import '../services/triage_engine.dart';
+import '../models/detected_concept.dart';
 
 class TranscriptionScreen extends StatefulWidget {
   const TranscriptionScreen({super.key});
@@ -17,6 +19,39 @@ class TranscriptionScreen extends StatefulWidget {
 
 class _TranscriptionScreenState extends State<TranscriptionScreen> {
   bool _wasAnalyzing = false;
+  List<DetectedConcept> _previewConcepts = [];
+  double _confidenceScore = 0.0;
+  bool _isLoadingPreview = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _generatePreview();
+    });
+  }
+
+  void _generatePreview() {
+    final provider = context.read<TriageProvider>();
+    final ageGroup = provider.currentSession?.patientAgeGroup?.name ?? 'ADULT';
+    final duration = provider.currentSession?.symptomDuration?.name ?? 'TODAY';
+    final text = provider.transcribedText;
+
+    if (TriageEngine.instance.isInitialized && text.isNotEmpty) {
+      final concepts = TriageEngine.instance.analyzeText(text, ageGroup, duration);
+      double maxSim = 0.0;
+      for (var c in concepts) {
+        if (c.similarity > maxSim) maxSim = c.similarity;
+      }
+      setState(() {
+        _previewConcepts = concepts;
+        _confidenceScore = maxSim.clamp(0.0, 1.0);
+        _isLoadingPreview = false;
+      });
+    } else {
+      setState(() => _isLoadingPreview = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,15 +166,20 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                             color: AppTheme.textDark, fontSize: 14,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8, runSpacing: 8,
-                      children: [
-                        _symptomChip('बुखार', AppTheme.triageYellow),
-                        _symptomChip('खांसी', AppTheme.triageYellow),
-                        _symptomChip('सांस में तकलीफ', AppTheme.triageRed),
-                        _symptomChip('3 दिन से लक्षण', AppTheme.textLight),
-                      ],
-                    ),
+                    _isLoadingPreview
+                        ? const Center(child: CircularProgressIndicator())
+                        : _previewConcepts.isEmpty
+                            ? Text('No severe symptoms detected.', style: GoogleFonts.poppins(color: AppTheme.textMedium, fontSize: 13))
+                            : Wrap(
+                                spacing: 8, runSpacing: 8,
+                                children: _previewConcepts.map((c) {
+                                  Color chipColor;
+                                  if (c.category == 'RED') chipColor = AppTheme.triageRed;
+                                  else if (c.category == 'YELLOW') chipColor = AppTheme.triageYellow;
+                                  else chipColor = AppTheme.triageGreen;
+                                  return _symptomChip(lang == 'en' ? c.conceptKey : c.hindiLabel, chipColor);
+                                }).toList(),
+                              ),
 
                     const SizedBox(height: 24),
 
@@ -161,7 +201,7 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                                   style: GoogleFonts.poppins(
                                       color: AppTheme.textDark, fontSize: 13,
                                       fontWeight: FontWeight.w600)),
-                              Text('82%',
+                              Text('${(_confidenceScore * 100).toInt()}%',
                                   style: GoogleFonts.poppins(
                                       color: AppTheme.primary, fontSize: 15,
                                       fontWeight: FontWeight.w700)),
@@ -171,7 +211,7 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(6),
                             child: LinearProgressIndicator(
-                              value: 0.82,
+                              value: _confidenceScore,
                               minHeight: 8,
                               backgroundColor: AppTheme.borderColor,
                               valueColor: AlwaysStoppedAnimation<Color>(

@@ -6,7 +6,8 @@
       "hindi_question": "क्या मरीज को सांस लेने में तकलीफ है?",
       "marathi_question": "रुग्णाला श्वास घेण्यास त्रास होतो का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Is the patient having difficulty breathing?"
     },
     {
       "key": "unconscious",
@@ -14,7 +15,8 @@
       "hindi_question": "क्या मरीज बेहोश है या जवाब नहीं दे रहा?",
       "marathi_question": "रुग्ण बेशुद्ध आहे किंवा प्रतिसाद देत नाही का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Is the patient unconscious or unresponsive?"
     },
     {
       "key": "seizure",
@@ -22,7 +24,8 @@
       "hindi_question": "क्या मरीज को दौरा पड़ा?",
       "marathi_question": "रुग्णाला झटका आला का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Is the patient experiencing seizure?"
     },
     {
       "key": "severe_bleeding",
@@ -30,7 +33,8 @@
       "hindi_question": "क्या मरीज को बहुत ज्यादा खून आ रहा है?",
       "marathi_question": "रुग्णाला खूप जास्त रक्तस्त्राव होत आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Is the patient bleeding severely?"
     },
     {
       "key": "chest_pain",
@@ -38,7 +42,8 @@
       "hindi_question": "क्या मरीज के सीने में दर्द है?",
       "marathi_question": "रुग्णाच्या छातीत दुखत आहे का?",
       "category": "RED",
-      "weight": 9.0
+      "weight": 9.0,
+      "english_question": "Is the patient experiencing chest pain?"
     },
     {
       "key": "newborn_emergency",
@@ -46,7 +51,8 @@
       "hindi_question": "क्या नवजात शिशु को कोई गंभीर समस्या है?",
       "marathi_question": "नवजात बालकाला कोणतीही गंभीर समस्या आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Does the newborn have an emergency condition?"
     },
     {
       "key": "labor_complication",
@@ -54,7 +60,8 @@
       "hindi_question": "क्या प्रसव में कोई समस्या आ रही है?",
       "marathi_question": "प्रसूतीमध्ये कोणतीही समस्या येत आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Are there complications with labor or delivery?"
     },
     {
       "key": "not_eating_drinking",
@@ -62,7 +69,8 @@
       "hindi_question": "क्या मरीज ने खाना पीना बंद कर दिया है?",
       "marathi_question": "रुग्णाने खाणे पिणे बंद केले आहे का?",
       "category": "RED",
-      "weight": 8.0
+      "weight": 8.0,
+      "english_question": "Has the patient stopped eating or drinking?"
     },
     {
       "key": "high_fever_prolonged",
@@ -70,7 +78,8 @@
       "hindi_question": "क्या मरीज को कई दिनों से तेज बुखार है?",
       "marathi_question": "रुग्णाला अनेक दिवसांपासून खूप ताप आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Does the patient have a high fever prolonged?"
     },
     {
       "key": "repeated_vomiting",
@@ -78,7 +87,8 @@
       "hindi_question": "क्या मरीज को बार बार उल्टी हो रही है?",
       "marathi_question": "रुग्णाला वारंवार उलट्या होत आहेत का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Is the patient vomiting repeatedly?"
     },
     {
       "key": "severe_diarrhea",
@@ -86,7 +96,8 @@
       "hindi_question": "क्या मरीज को बहुत ज्यादा दस्त हो रहे हैं?",
       "marathi_question": "रुग्णाला खूप जास्त जुलाब होत आहेत का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Does the patient have severe diarrhea?"
     },
     {
       "key": "severe_headache",
@@ -94,7 +105,8 @@
       "hindi_question": "क्या मरीज के सिर में बहुत तेज दर्द है?",
       "marathi_question": "रुग्णाच्या डोक्यात खूप वेदना होत आहेत का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Does the patient have an ache (severe headache)?"
     },
     {
       "key": "pregnancy_concern",
@@ -102,7 +114,8 @@
       "hindi_question": "क्या गर्भवती महिला को कोई परेशानी है?",
       "marathi_question": "गर्भवती महिलेला कोणतीही समस्या आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Are there any pregnancy-related concerns?"
     },
     {
       "key": "child_lethargic",
@@ -110,7 +123,8 @@
       "hindi_question": "क्या बच्चा बहुत सुस्त और कमज़ोर है?",
       "marathi_question": "मूल खूप सुस्त आणि कमकुवत आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Is the child very lethargic or inactive?"
     },
     {
       "key": "body_swelling",
@@ -118,7 +132,8 @@
       "hindi_question": "क्या मरीज के शरीर में सूजन है?",
       "marathi_question": "रुग्णाच्या शरीरावर सूज आहे का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Is there noticeable swelling on the body?"
     },
     {
       "key": "common_cold",
@@ -126,7 +141,8 @@
       "hindi_question": "क्या मरीज को सर्दी जुकाम है?",
       "marathi_question": "रुग्णाला सर्दी खोकला आहे का?",
       "category": "GREEN",
-      "weight": 1.0
+      "weight": 1.0,
+      "english_question": "Does the patient have a common cold?"
     },
     {
       "key": "minor_body_ache",
@@ -134,7 +150,8 @@
       "hindi_question": "क्या मरीज के शरीर में हल्का दर्द है?",
       "marathi_question": "रुग्णाच्या अंगात हलके दुखत आहे का?",
       "category": "GREEN",
-      "weight": 1.0
+      "weight": 1.0,
+      "english_question": "Does the patient have an ache (minor body ache)?"
     },
     {
       "key": "minor_stomach_ache",
@@ -142,7 +159,8 @@
       "hindi_question": "क्या मरीज के पेट में हल्का दर्द है?",
       "marathi_question": "रुग्णाच्या पोटात हलके दुखत आहे का?",
       "category": "GREEN",
-      "weight": 1.0
+      "weight": 1.0,
+      "english_question": "Does the patient have an ache (minor stomach ache)?"
     },
     {
       "key": "snakebite_animal_bite",
@@ -150,7 +168,8 @@
       "hindi_question": "क्या मरीज को सांप या किसी जहरीले जानवर ने काटा है?",
       "marathi_question": "रुग्णाला साप किंवा विषारी प्राण्याने चावले का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Has the patient been bitten by a snake or animal?"
     },
     {
       "key": "severe_dehydration",
@@ -158,7 +177,8 @@
       "hindi_question": "क्या मरीज की आंखें धंसी हुई हैं या मुंह बिल्कुल सूखा है?",
       "marathi_question": "रुग्णाचे डोळे आत गेले आहेत किंवा तोंड पूर्णपणे कोरडे आहे का?",
       "category": "RED",
-      "weight": 9.0
+      "weight": 9.0,
+      "english_question": "Is the patient severely dehydrated?"
     },
     {
       "key": "trauma_accident",
@@ -166,7 +186,8 @@
       "hindi_question": "क्या मरीज को कोई गंभीर चोट या दुर्घटना हुई है?",
       "marathi_question": "रुग्णाला गंभीर दुखापत किंवा अपघात झाला आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Has the patient suffered a trauma or accident?"
     },
     {
       "key": "poisoning_overdose",
@@ -174,7 +195,8 @@
       "hindi_question": "क्या मरीज ने कोई जहर, दवाई या केमिकल निगल लिया है?",
       "marathi_question": "रुग्णाने विष, औषध किंवा रसायन गिळले आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Has the patient ingested poison or overdosed?"
     },
     {
       "key": "stroke_signs",
@@ -182,7 +204,8 @@
       "hindi_question": "क्या मरीज का चेहरा एक तरफ झुक गया है या बोलने में अचानक दिक्कत हो रही है?",
       "marathi_question": "रुग्णाचा चेहरा एका बाजूला झुकला आहे किंवा अचानक बोलण्यात अडचण येत आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Is the patient showing signs of a stroke (e.g. face drooping)?"
     },
     {
       "key": "severe_burn",
@@ -190,7 +213,8 @@
       "hindi_question": "क्या मरीज को गंभीर जलन या आग से बड़ी चोट लगी है?",
       "marathi_question": "रुग्णाला गंभीर भाजणे किंवा आगीने मोठी दुखापत झाली आहे का?",
       "category": "RED",
-      "weight": 9.0
+      "weight": 9.0,
+      "english_question": "Does the patient have a severe burn?"
     },
     {
       "key": "diabetic_emergency",
@@ -198,7 +222,8 @@
       "hindi_question": "क्या मरीज शुगर का मरीज है और बेहोश या कांप रहा है?",
       "marathi_question": "रुग्ण मधुमेही आहे आणि बेशुद्ध किंवा थरथरत आहे का?",
       "category": "RED",
-      "weight": 9.0
+      "weight": 9.0,
+      "english_question": "Is this a diabetic emergency?"
     },
     {
       "key": "choking_foreign_body",
@@ -206,7 +231,8 @@
       "hindi_question": "क्या मरीज के गले में कुछ फंसा है या वो सांस नहीं ले पा रहा?",
       "marathi_question": "रुग्णाच्या घशात काही अडकले आहे किंवा तो श्वास घेऊ शकत नाही का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Is the patient choking on a foreign body?"
     },
     {
       "key": "hypertension_crisis",
@@ -214,7 +240,8 @@
       "hindi_question": "क्या मरीज का ब्लड प्रेशर बहुत ज्यादा है या सिर में बहुत तेज दर्द के साथ धुंधला दिख रहा है?",
       "marathi_question": "रुग्णाचा रक्तदाब खूप जास्त आहे किंवा डोकेदुखीसोबत अंधुक दिसत आहे का?",
       "category": "RED",
-      "weight": 9.0
+      "weight": 9.0,
+      "english_question": "Is the patient in a hypertension crisis?"
     },
     {
       "key": "severe_allergic_reaction",
@@ -222,7 +249,8 @@
       "hindi_question": "क्या मरीज के चेहरे या गले में अचानक सूजन आ गई है?",
       "marathi_question": "रुग्णाच्या चेहऱ्यावर किंवा घशात अचानक सूज आली आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Is the patient having a severe allergic reaction?"
     },
     {
       "key": "jaundice",
@@ -230,7 +258,8 @@
       "hindi_question": "क्या मरीज की आंखें या त्वचा पीली दिख रही है?",
       "marathi_question": "रुग्णाचे डोळे किंवा त्वचा पिवळी दिसत आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Does the patient show signs of jaundice (yellowing)?"
     },
     {
       "key": "rash_with_fever",
@@ -238,7 +267,8 @@
       "hindi_question": "क्या मरीज को बुखार के साथ शरीर पर दाने या चकत्ते हैं?",
       "marathi_question": "रुग्णाला ताप आणि अंगावर पुरळ आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Does the patient have a rash with fever?"
     },
     {
       "key": "dog_bite_wound",
@@ -246,7 +276,8 @@
       "hindi_question": "क्या मरीज को कुत्ते या किसी जानवर ने काटा है या घाव में पस है?",
       "marathi_question": "रुग्णाला कुत्रा किंवा प्राण्याने चावले आहे किंवा जखमेत पू आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Has the patient been bitten by a dog?"
     },
     {
       "key": "urinary_problem",
@@ -254,7 +285,8 @@
       "hindi_question": "क्या मरीज को पेशाब करने में दर्द या जलन हो रही है?",
       "marathi_question": "रुग्णाला लघवी करताना वेदना किंवा जळजळ होत आहे का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Is the patient having urinary problems?"
     },
     {
       "key": "chest_infection_wheeze",
@@ -262,7 +294,8 @@
       "hindi_question": "क्या मरीज की सांस में घरघराहट की आवाज़ आ रही है?",
       "marathi_question": "रुग्णाच्या श्वासात घरघर आवाज येतो का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Does the patient have a chest infection or wheezing?"
     },
     {
       "key": "postpartum_concern",
@@ -270,7 +303,8 @@
       "hindi_question": "क्या मरीज ने हाल ही में बच्चा जना है और उसे बुखार या खून आ रहा है?",
       "marathi_question": "रुग्णाने अलीकडेच बाळ जन्मले आहे आणि तिला ताप किंवा रक्तस्राव होत आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Are there postpartum concerns?"
     },
     {
       "key": "malnutrition",
@@ -278,7 +312,8 @@
       "hindi_question": "क्या बच्चा बहुत कमज़ोर है और उसकी हड्डियां दिख रही हैं?",
       "marathi_question": "मूल खूप अशक्त आहे आणि त्याच्या हाडे दिसत आहेत का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Does the patient show signs of severe malnutrition?"
     },
     {
       "key": "mental_health_crisis",
@@ -286,7 +321,8 @@
       "hindi_question": "क्या मरीज बहुत आक्रामक है या अजीब व्यवहार कर रहा है?",
       "marathi_question": "रुग्ण खूप आक्रमक आहे किंवा विचित्र वागणूक करत आहे का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Is the patient experiencing a mental health crisis?"
     },
     {
       "key": "eye_pain_redness",
@@ -294,7 +330,8 @@
       "hindi_question": "क्या मरीज की आंख में बहुत तेज दर्द है या अचानक दिखना बंद हो गया?",
       "marathi_question": "रुग्णाच्या डोळ्यात खूप वेदना आहे किंवा अचानक दिसणे बंद झाले का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Does the patient have severe eye pain or redness?"
     },
     {
       "key": "ear_pain_discharge",
@@ -302,7 +339,8 @@
       "hindi_question": "क्या मरीज के कान में बहुत दर्द है या कान से पानी आ रहा है?",
       "marathi_question": "रुग्णाच्या कानात खूप दुखत आहे किंवा कानातून पाणी येत आहे का?",
       "category": "YELLOW",
-      "weight": 5.0
+      "weight": 5.0,
+      "english_question": "Does the patient have severe ear pain or discharge?"
     },
     {
       "key": "skin_allergy_itching",
@@ -310,7 +348,8 @@
       "hindi_question": "क्या मरीज की त्वचा में हल्की खुजली या एलर्जी है?",
       "marathi_question": "रुग्णाच्या त्वचेला हलकी खाज किंवा ऍलर्जी आहे का?",
       "category": "GREEN",
-      "weight": 2.0
+      "weight": 2.0,
+      "english_question": "Does the patient have a skin allergy or itching?"
     },
     {
       "key": "constipation",
@@ -318,7 +357,8 @@
       "hindi_question": "क्या मरीज को कब्ज़ है या मल त्यागने में दिक्कत है?",
       "marathi_question": "रुग्णाला बद्धकोष्ठता आहे किंवा शौचास जाण्यात अडचण आहे का?",
       "category": "GREEN",
-      "weight": 1.0
+      "weight": 1.0,
+      "english_question": "Is the patient experiencing constipation?"
     },
     {
       "key": "minor_cut_wound",
@@ -326,7 +366,8 @@
       "hindi_question": "क्या मरीज को छोटी कट या खरोंच लगी है?",
       "marathi_question": "रुग्णाला छोटी कापली किंवा ओरखडा आहे का?",
       "category": "GREEN",
-      "weight": 1.0
+      "weight": 1.0,
+      "english_question": "Does the patient have a minor cut or wound?"
     },
     {
       "key": "worm_infestation",
@@ -334,7 +375,8 @@
       "hindi_question": "क्या बच्चे के पेट में कीड़े हैं?",
       "marathi_question": "मुलाच्या पोटात जंत आहेत का?",
       "category": "GREEN",
-      "weight": 1.0
+      "weight": 1.0,
+      "english_question": "Is there a worm infestation?"
     },
     {
       "key": "fever_mild",
@@ -342,7 +384,8 @@
       "hindi_question": "क्या मरीज को हल्का बुखार है?",
       "marathi_question": "रुग्णाला हलका ताप आहे का?",
       "category": "GREEN",
-      "weight": 2.0
+      "weight": 2.0,
+      "english_question": "Does the patient have a fever mild?"
     },
     {
       "key": "fever_high",
@@ -350,7 +393,8 @@
       "hindi_question": "क्या मरीज को बहुत तेज बुखार है जो कम नहीं हो रहा?",
       "marathi_question": "रुग्णाला खूप तेज ताप आहे जो कमी होत नाही का?",
       "category": "YELLOW",
-      "weight": 6.0
+      "weight": 6.0,
+      "english_question": "Does the patient have a fever high?"
     },
     {
       "key": "fever_with_seizure",
@@ -358,13 +402,18 @@
       "hindi_question": "क्या बुखार के साथ दौरा या कंपकंपी आई है?",
       "marathi_question": "तापासोबत झटका किंवा आकडी आली आहे का?",
       "category": "RED",
-      "weight": 10.0
+      "weight": 10.0,
+      "english_question": "Does the patient have a fever with seizure?"
     }
   ],
   "combination_rules": [
     {
       "id": "fever_headache_escalation",
-      "concepts": ["high_fever_prolonged", "severe_headache", "fever_high"],
+      "concepts": [
+        "high_fever_prolonged",
+        "severe_headache",
+        "fever_high"
+      ],
       "escalate_to": "RED",
       "minimum_matches": 2,
       "hindi_reason": "तेज बुखार और सिरदर्द साथ में गंभीर हो सकता है",
@@ -372,7 +421,10 @@
     },
     {
       "id": "vomiting_diarrhea_dehydration",
-      "concepts": ["repeated_vomiting", "severe_diarrhea"],
+      "concepts": [
+        "repeated_vomiting",
+        "severe_diarrhea"
+      ],
       "escalate_to": "RED",
       "minimum_matches": 2,
       "hindi_reason": "उल्टी और दस्त साथ में गंभीर निर्जलीकरण का खतरा है",
@@ -380,7 +432,10 @@
     },
     {
       "id": "pregnancy_swelling_crisis",
-      "concepts": ["pregnancy_concern", "body_swelling"],
+      "concepts": [
+        "pregnancy_concern",
+        "body_swelling"
+      ],
       "escalate_to": "RED",
       "minimum_matches": 2,
       "hindi_reason": "गर्भावस्था में सूजन pre-eclampsia का संकेत हो सकता है",
@@ -388,7 +443,10 @@
     },
     {
       "id": "child_not_eating_lethargic",
-      "concepts": ["child_lethargic", "not_eating_drinking"],
+      "concepts": [
+        "child_lethargic",
+        "not_eating_drinking"
+      ],
       "escalate_to": "RED",
       "minimum_matches": 2,
       "hindi_reason": "बच्चा सुस्त है और खाना भी नहीं खा रहा — यह गंभीर स्थिति है",
@@ -396,7 +454,10 @@
     },
     {
       "id": "fever_rash_dengue_risk",
-      "concepts": ["rash_with_fever", "severe_headache"],
+      "concepts": [
+        "rash_with_fever",
+        "severe_headache"
+      ],
       "escalate_to": "RED",
       "minimum_matches": 2,
       "hindi_reason": "बुखार, दाने और सिरदर्द डेंगू का संकेत हो सकता है",
@@ -404,7 +465,9 @@
     },
     {
       "id": "newborn_any_yellow",
-      "concepts": ["ANY_YELLOW"],
+      "concepts": [
+        "ANY_YELLOW"
+      ],
       "escalate_to": "RED",
       "condition": "ageGroup == NEWBORN",
       "minimum_matches": 1,
@@ -414,18 +477,38 @@
   ],
   "negation_patterns": {
     "hindi": [
-      "नहीं है", "ठीक है", "नहीं हो रहा", "नहीं था",
-      "नहीं हुआ", "बिल्कुल ठीक", "कोई दिक्कत नहीं",
-      "सही है", "अच्छा है", "ठीक हो गया"
+      "नहीं है",
+      "ठीक है",
+      "नहीं हो रहा",
+      "नहीं था",
+      "नहीं हुआ",
+      "बिल्कुल ठीक",
+      "कोई दिक्कत नहीं",
+      "सही है",
+      "अच्छा है",
+      "ठीक हो गया"
     ],
     "marathi": [
-      "नाही", "ठीक आहे", "होत नाही", "नव्हते",
-      "झाले नाही", "बरे आहे", "काही त्रास नाही",
+      "नाही",
+      "ठीक आहे",
+      "होत नाही",
+      "नव्हते",
+      "झाले नाही",
+      "बरे आहे",
+      "काही त्रास नाही",
       "बरे झाले"
     ],
     "english": [
-      "no", "not", "doesn't", "don't", "isn't", "fine",
-      "okay", "normal", "nothing wrong", "no problem"
+      "no",
+      "not",
+      "doesn't",
+      "don't",
+      "isn't",
+      "fine",
+      "okay",
+      "normal",
+      "nothing wrong",
+      "no problem"
     ],
     "score_reduction": 0.4
   }

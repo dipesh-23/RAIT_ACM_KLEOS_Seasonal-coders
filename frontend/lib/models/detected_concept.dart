@@ -4,6 +4,8 @@ class DetectedConcept {
   final double similarity;
   final int weight;
   final String hindiLabel;
+  final String? marathiLabel;
+  final String? englishLabel;
   final String confirmationQuestion;
   bool confirmed; // mutable so worker can flip it
 
@@ -13,19 +15,23 @@ class DetectedConcept {
     required this.similarity,
     required this.weight,
     required this.hindiLabel,
+    this.marathiLabel,
+    this.englishLabel,
     required this.confirmationQuestion,
     this.confirmed = false,
   });
 
   String getLabelForLang(String lang) {
-    if (lang == 'mr') return _labelTranslationsMr[conceptKey] ?? hindiLabel;
-    if (lang == 'en') return _labelTranslationsEn[conceptKey] ?? hindiLabel;
+    final searchKey = conceptKey.replaceAll('_', ' ');
+    if (lang == 'mr') return _labelTranslationsMr[searchKey] ?? hindiLabel;
+    if (lang == 'en') return _labelTranslationsEn[searchKey] ?? hindiLabel;
     return hindiLabel;
   }
 
   String getQuestionForLang(String lang) {
-    if (lang == 'mr') return _questionTranslationsMr[conceptKey] ?? confirmationQuestion;
-    if (lang == 'en') return _questionTranslationsEn[conceptKey] ?? confirmationQuestion;
+    final searchKey = conceptKey.replaceAll('_', ' ');
+    if (lang == 'mr') return marathiLabel ?? _questionTranslationsMr[searchKey] ?? confirmationQuestion;
+    if (lang == 'en') return englishLabel ?? _questionTranslationsEn[searchKey] ?? confirmationQuestion;
     return confirmationQuestion;
   }
 

@@ -5,6 +5,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../providers/triage_provider.dart';
 import '../models/triage_result.dart';
+import '../utils/app_strings.dart';
 import 'referral_screen.dart';
 
 class ResultScreen extends StatefulWidget {
@@ -37,7 +38,12 @@ class _ResultScreenState extends State<ResultScreen> {
             audioPath = 'audio/green_hindi.mp3';
             break;
         }
-        _audioPlayer.play(AssetSource(audioPath));
+        // TODO: Re-enable when mp3 files are no longer 0-byte
+        // try {
+        //   _audioPlayer.play(AssetSource(audioPath));
+        // } catch (e) {
+        //   debugPrint('Audio playback failed (possibly 0-byte file): $e');
+        // }
       }
     });
   }
@@ -53,6 +59,7 @@ class _ResultScreenState extends State<ResultScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<TriageProvider>();
     final result = provider.currentResult;
+    final lang = provider.selectedLanguage;
     final concepts = provider.detectedConcepts.where((c) => c.confirmed).toList();
 
     if (result == null) {
@@ -85,9 +92,9 @@ class _ResultScreenState extends State<ResultScreen> {
             children: [
               const Spacer(),
               
-              // Level Hindi
+              // Level Localized
               Text(
-                result.levelHindi,
+                result.levelTitleForLang(lang),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 36,
@@ -99,7 +106,7 @@ class _ResultScreenState extends State<ResultScreen> {
               
               // Level Subtitle
               Text(
-                result.levelSubtitle,
+                result.levelSubtitleForLang(lang),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 18,
@@ -121,7 +128,7 @@ class _ResultScreenState extends State<ResultScreen> {
               // Confirmed Concepts List
               if (concepts.isEmpty)
                 Text(
-                  'कोई विशेष लक्षण नहीं',
+                  lang == 'en' ? 'No specific symptoms' : (lang == 'mr' ? 'कोणतीही विशिष्ट लक्षणे नाहीत' : 'कोई विशेष लक्षण नहीं'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
@@ -132,7 +139,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 ...concepts.map((c) => Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: Text(
-                    '• ${c.hindiLabel}',
+                    '• ${c.getLabelForLang(lang)}',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
@@ -160,7 +167,7 @@ class _ResultScreenState extends State<ResultScreen> {
                   );
                 },
                 child: Text(
-                  'रेफरल स्लिप बनाएं',
+                  AppStrings.get('create_referral_slip', lang),
                   style: GoogleFonts.poppins(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
