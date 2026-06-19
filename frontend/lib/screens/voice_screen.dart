@@ -25,8 +25,6 @@ class _VoiceScreenState extends State<VoiceScreen>
   bool _isRecording = false;
   StreamSubscription<String>? _sttSub;
 
-
-
   @override
   void initState() {
     super.initState();
@@ -36,10 +34,35 @@ class _VoiceScreenState extends State<VoiceScreen>
         duration: const Duration(milliseconds: 2000))..repeat();
     _pulseAnim = Tween<double>(begin: 1.0, end: 1.18)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.read<TriageProvider>().transcribedText.isNotEmpty) {
+        setState(() {
+          _liveText = context.read<TriageProvider>().transcribedText;
+        });
+      }
+    });
+
+    SttService.instance.isListeningNotifier.addListener(_onListeningStateChanged);
+  }
+
+  void _onListeningStateChanged() {
+    final isListening = SttService.instance.isListeningNotifier.value;
+    if (mounted && _isRecording != isListening) {
+      setState(() {
+        _isRecording = isListening;
+      });
+      context.read<TriageProvider>().setRecording(_isRecording);
+      
+      if (!isListening && _liveText.isNotEmpty) {
+        context.read<TriageProvider>().updateTranscription(_liveText);
+      }
+    }
   }
 
   @override
   void dispose() {
+    SttService.instance.isListeningNotifier.removeListener(_onListeningStateChanged);
     _pulseCtrl.dispose();
     _waveCtrl.dispose();
     _sttSub?.cancel();
@@ -48,13 +71,13 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   void _toggleRecording() {
     final lang = context.read<TriageProvider>().selectedLanguage;
-    final localeMap = {'hi': 'hi-IN', 'mr': 'mr-IN', 'en': 'en-IN'};
-    final sttLocale = localeMap[lang] ?? 'hi-IN';
+    final localeMap = {'hi': 'hi_IN', 'mr': 'mr_IN', 'en': 'en_IN'};
+    final sttLocale = localeMap[lang] ?? 'hi_IN';
 
-    setState(() => _isRecording = !_isRecording);
-    context.read<TriageProvider>().setRecording(_isRecording);
+    if (!_isRecording) {
+      setState(() => _isRecording = true);
+      context.read<TriageProvider>().setRecording(true);
 
-    if (_isRecording) {
       _liveText = '';
       _sttSub?.cancel();
       _sttSub = SttService.instance.transcriptStream.listen((text) {
@@ -62,8 +85,11 @@ class _VoiceScreenState extends State<VoiceScreen>
       });
       SttService.instance.startListening(locale: sttLocale);
     } else {
-      _sttSub?.cancel();
+      // User tapped Stop
       SttService.instance.stopListening();
+      if (_liveText.isNotEmpty) {
+        context.read<TriageProvider>().updateTranscription(_liveText);
+      }
     }
   }
 

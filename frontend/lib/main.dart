@@ -7,6 +7,7 @@ import 'services/onboarding_service.dart';
 import 'services/database_service.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/session_start_screen.dart';
+import 'screens/language_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,7 +48,7 @@ class AshaTriageApp extends StatelessWidget {
 
   Widget _resolveHome() {
     final svc = OnboardingService.instance;
-    if (!svc.isOnboardingDone) return const OnboardingScreen();
+    if (!svc.isOnboardingDone) return const LanguageSelectionScreen();
     return const SessionStartScreen();
   }
 }
