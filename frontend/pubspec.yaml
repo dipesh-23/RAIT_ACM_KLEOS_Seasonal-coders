@@ -74,3 +74,4 @@ flutter:
     - assets/audio/
     - assets/model/
     - assets/anchors/
+    - assets/vosk/
