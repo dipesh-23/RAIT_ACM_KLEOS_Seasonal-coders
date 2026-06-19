@@ -24,12 +24,16 @@ class TriageEngine {
   final Map<String, List<double>> _anchorEmbeddings = {};
 
   /// Flat list of all anchor entries. Each map contains:
-  ///   'key'      → String
-  ///   'phrase'   → String
-  ///   'category' → String ("RED" | "YELLOW" | "GREEN")
-  ///   'weight'   → int
-  ///   'hindi'    → String
+  ///   'key'             → String
+  ///   'phrase'          → String
+  ///   'category'        → String ("RED" | "YELLOW" | "GREEN")
+  ///   'weight'          → int
+  ///   'hindi'           → String  (confirmation question)
+  ///   'hindi_keywords'  → List<String> (Hindi Devanagari symptom words)
   final List<Map<String, dynamic>> _anchors = [];
+
+  /// Pre-computed Hindi keyword lists per anchor (parallel to [_anchors]).
+  final List<List<String>> _hindiKeywords = [];
   final List<Map<String, dynamic>> _combinationRules = [];
   Map<String, dynamic> _negationPatterns = {};
 
@@ -115,7 +119,15 @@ class TriageEngine {
         'category': concept['category'] as String,
         'weight':   (concept['weight'] as num).toInt(),
         'hindi':    concept['hindi_question'] as String,
+        'marathi':  (concept['marathi_question'] ?? concept['hindi_question']) as String,
+        'english':  (concept['english_question'] ?? concept['hindi_question']) as String,
       });
+
+      // Load Hindi & English keyword lists for bilingual matching
+      final hindiKws = concept['hindi_keywords'] as List? ?? [];
+      final engKws = concept['english_keywords'] as List? ?? [];
+      final combined = [...hindiKws.cast<String>(), ...engKws.cast<String>()];
+      _hindiKeywords.add(combined.map((s) => s.toLowerCase()).toList());
     }
 
     final rulesList = data['combination_rules'] as List<dynamic>;
@@ -133,6 +145,34 @@ class TriageEngine {
     }
 
     _isInitialized = true;
+  }
+
+  // ── Hindi language support ───────────────────────────────────────────────────
+
+  /// Returns true if [text] contains any Devanagari Unicode character
+  /// (U+0900–U+097F), indicating Hindi or Marathi script input.
+  bool _isHindi(String text) =>
+      text.runes.any((r) => r >= 0x0900 && r <= 0x097F);
+
+  /// Scores a Hindi [transcript] against a list of [keywords] using
+  /// substring containment.
+  ///
+  /// Returns a value in [0.0, 1.0]:
+  ///   - 0.0  if no keyword matches
+  ///   - 0.60 for 1 match (base hit above the 0.40 detection threshold)
+  ///   - scales up to 0.95 as more keywords match
+  double _hindiKeywordScore(String transcript, List<String> keywords) {
+    if (keywords.isEmpty) return 0.0;
+    int hits = 0;
+    final lowerTranscript = transcript.toLowerCase();
+    for (final kw in keywords) {
+      // Skip very short generic keywords (< 4 chars) that cause false positives
+      if (kw.length < 4) continue;
+      if (lowerTranscript.contains(kw)) hits++;
+    }
+    if (hits == 0) return 0.0;
+    // 0.60 base + 0.05 per additional match, capped at 0.95
+    return (0.60 + 0.05 * (hits - 1)).clamp(0.0, 0.95);
   }
 
   // ── Utility methods ──────────────────────────────────────────────────────────
@@ -227,6 +267,8 @@ class TriageEngine {
       final category  = anchor['category'] as String;
       final weight    = anchor['weight']   as int;
       final hindi     = anchor['hindi']    as String;
+      final marathi   = anchor['marathi']  as String;
+      final english   = anchor['english']  as String;
 
       final anchorEmb = _anchorEmbeddings[phrase]!;
       final similarity = cosine(transcriptEmbedding, anchorEmb);
@@ -238,7 +280,9 @@ class TriageEngine {
           similarity:           similarity,
           weight:               weight,
           hindiLabel:           hindi,
-          confirmationQuestion: hindi,
+          marathiLabel:         marathi,
+          englishLabel:         english,
+          confirmationQuestion: hindi, // fallback
         ));
       }
     }
@@ -398,23 +442,35 @@ class TriageEngine {
         .toList();
 
     // ── 3-5. Score every anchor against all chunks ───────────────────────────
-    const double threshold = 0.50;
+    const double threshold = 0.40;
     final detected = <DetectedConcept>[];
 
-    for (final anchor in _anchors) {
+
+
+    for (int i = 0; i < _anchors.length; i++) {
+      final anchor   = _anchors[i];
       final key      = anchor['key']      as String;
       final phrase   = anchor['phrase']   as String;
       final category = anchor['category'] as String;
       final weight   = anchor['weight']   as int;
       final hindi    = anchor['hindi']    as String;
+      final marathi  = anchor['marathi']  as String;
+      final english  = anchor['english']  as String;
 
       final anchorEmb = _anchorEmbeddings[phrase]!;
 
-      // Maximum cosine similarity across all chunk embeddings
+      // Maximum cosine similarity across all chunk embeddings (English signal)
       double maxSimilarity = 0.0;
       for (final chunkEmb in chunkEmbeddings) {
         final sim = cosine(chunkEmb, anchorEmb);
         if (sim > maxSimilarity) maxSimilarity = sim;
+      }
+
+      // Supplement with keyword matching (primary signal for Devanagari / offline text)
+      if (i < _hindiKeywords.length) {
+        final kwScore = _hindiKeywordScore(transcript, _hindiKeywords[i]);
+        // Take the higher of embedding score or keyword score
+        maxSimilarity = math.max(maxSimilarity, kwScore);
       }
 
       final penalizedScore = _applyNegationPenalty(transcript, key, maxSimilarity);
@@ -433,6 +489,8 @@ class TriageEngine {
           similarity:           adjusted,
           weight:               weight,
           hindiLabel:           hindi,
+          marathiLabel:         marathi,
+          englishLabel:         english,
           confirmationQuestion: hindi,
         ));
       }
@@ -516,7 +574,13 @@ class TriageEngine {
       if (!concept.confirmed) continue;
 
       final contribution = concept.similarity * concept.weight;
-      reasons.add(concept.hindiLabel);
+      // Build readable label from the concept key (e.g. chest_pain → Chest Pain)
+      final readableLabel = concept.englishLabel ?? 
+          concept.conceptKey.replaceAll('_', ' ')
+              .split(' ')
+              .map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '')
+              .join(' ');
+      reasons.add(readableLabel);
 
       switch (concept.category) {
         case 'RED':

@@ -24,12 +24,13 @@ async def classify(request: TriageRequest) -> TriageResult:
     if not transcript:
         raise HTTPException(status_code=400, detail="Transcript cannot be empty")
 
-    level, confidence, matched_anchor = triage_engine.classify(transcript)
+    level, confidence, matched_anchor, matched_anchor_hi = triage_engine.classify(transcript)
     return TriageResult(
         level=TriageLevel(level),
         transcript=transcript,
         confidence=confidence,
         matched_anchor=matched_anchor,
+        matched_anchor_hi=matched_anchor_hi,
         timestamp=datetime.utcnow(),
     )
 

@@ -18,6 +18,9 @@ subprojects {
         if (project.hasProperty("android")) {
             project.extensions.configure<com.android.build.gradle.BaseExtension>("android") {
                 ndkVersion = "28.2.13676358"
+                if (namespace == null) {
+                    namespace = project.group.toString()
+                }
             }
         }
     }

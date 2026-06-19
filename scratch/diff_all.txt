@@ -1,0 +1,4828 @@
+diff --git a/frontend/android/app/src/main/AndroidManifest.xml b/frontend/android/app/src/main/AndroidManifest.xml
+index 7325719..61847df 100644
+--- a/frontend/android/app/src/main/AndroidManifest.xml
++++ b/frontend/android/app/src/main/AndroidManifest.xml
+@@ -14,6 +14,13 @@
+     <uses-permission android:name="android.permission.INTERNET"
+         tools:node="remove"/>
+ 
++    <!-- Required for Android 11+ (API 30+) visibility of SpeechRecognizer -->
++    <queries>
++        <intent>
++            <action android:name="android.speech.RecognitionService" />
++        </intent>
++    </queries>
++
+     <application
+         android:label="ASHA Triage"
+         android:name="${applicationName}"
+diff --git a/frontend/android/app/src/main/kotlin/com/asha/triage/MainActivity.kt b/frontend/android/app/src/main/kotlin/com/asha/triage/MainActivity.kt
+index ff1e176..b01811c 100644
+--- a/frontend/android/app/src/main/kotlin/com/asha/triage/MainActivity.kt
++++ b/frontend/android/app/src/main/kotlin/com/asha/triage/MainActivity.kt
+@@ -1,111 +1,5 @@
+ package com.asha.triage
+ 
+ import io.flutter.embedding.android.FlutterActivity
+-import io.flutter.embedding.engine.FlutterEngine
+-import io.flutter.plugin.common.MethodChannel
+-import android.content.ComponentName
+-import android.content.Intent
+-import android.provider.Settings
+ 
+-class MainActivity : FlutterActivity() {
+-  private val CHANNEL = "com.asha.triage/settings"
+-
+-  override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+-    super.configureFlutterEngine(flutterEngine)
+-    MethodChannel(
+-      flutterEngine.dartExecutor.binaryMessenger,
+-      CHANNEL
+-    ).setMethodCallHandler { call, result ->
+-      when (call.method) {
+-        "openGoogleOfflineSpeech" -> {
+-          var opened = false
+-
+-          // Intent 1 — Direct Google offline speech settings
+-          try {
+-            val intent = Intent(Intent.ACTION_MAIN)
+-            intent.component = ComponentName(
+-              "com.google.android.googlequicksearchbox",
+-              "com.google.android.apps.gsa.settingsui.VoiceSearchPreferences"
+-            )
+-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+-            startActivity(intent)
+-            opened = true
+-          } catch (e: Exception) {
+-          }
+-
+-          // Intent 2 — Google app voice settings
+-          if (!opened) {
+-            try {
+-              val intent = Intent("android.intent.action.VIEW")
+-              intent.setPackage("com.google.android.googlequicksearchbox")
+-              intent.putExtra("SETTINGS_TYPE", "VOICE")
+-              intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+-              startActivity(intent)
+-              opened = true
+-            } catch (e: Exception) {
+-            }
+-          }
+-
+-          // Intent 3 — Generic text to speech settings
+-          if (!opened) {
+-            try {
+-              val intent = Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
+-              intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+-              startActivity(intent)
+-              opened = true
+-            } catch (e: Exception) {
+-            }
+-          }
+-
+-          // Intent 4 — Final fallback, general settings
+-          if (!opened) {
+-            try {
+-              val intent = Intent(Settings.ACTION_SETTINGS)
+-              intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+-              startActivity(intent)
+-              opened = true
+-            } catch (e: Exception) {
+-            }
+-          }
+-
+-          if (opened) {
+-            result.success("opened")
+-          } else {
+-            result.success("fallback")
+-          }
+-        }
+-        "openSpeechSettings" -> {
+-          try {
+-            val intent = Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
+-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+-            startActivity(intent)
+-            result.success("opened")
+-          } catch (e: Exception) {
+-            result.success("failed")
+-          }
+-        }
+-        "openLanguageSettings" -> {
+-          try {
+-            val intent = Intent(Settings.ACTION_LOCALE_SETTINGS)
+-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+-            startActivity(intent)
+-            result.success("opened")
+-          } catch (e: Exception) {
+-            result.success("failed")
+-          }
+-        }
+-        "openInputMethodSettings" -> {
+-          try {
+-            val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
+-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+-            startActivity(intent)
+-            result.success("opened")
+-          } catch (e: Exception) {
+-            result.success("failed")
+-          }
+-        }
+-        else -> result.notImplemented()
+-      }
+-    }
+-  }
+-}
++class MainActivity : FlutterActivity()
+diff --git a/frontend/lib/main.dart b/frontend/lib/main.dart
+index 90401f5..b0b2c97 100644
+--- a/frontend/lib/main.dart
++++ b/frontend/lib/main.dart
+@@ -7,9 +7,6 @@ import 'services/onboarding_service.dart';
+ import 'services/database_service.dart';
+ import 'screens/onboarding_screen.dart';
+ import 'screens/session_start_screen.dart';
+-import 'screens/language_selection_screen.dart';
+-import 'services/embedding_service.dart';
+-import 'services/triage_engine.dart';
+ 
+ void main() async {
+   WidgetsFlutterBinding.ensureInitialized();
+@@ -27,31 +24,17 @@ void main() async {
+   await OnboardingService.instance.init();
+   await DatabaseService.instance.database;
+ 
+-  final triageProvider = TriageProvider();
+-
+-  Future.microtask(() async {
+-    try {
+-      await EmbeddingService.instance.initialize();
+-      await TriageEngine.instance.initialize();
+-      triageProvider.servicesReady = true;
+-    } catch (e) {
+-      triageProvider.setInitError(e.toString());
+-      print('INIT ERROR: $e');
+-    }
+-  });
+-
+-  runApp(AshaTriageApp(triageProvider: triageProvider));
++  runApp(const AshaTriageApp());
+ }
+ 
+ class AshaTriageApp extends StatelessWidget {
+-  final TriageProvider triageProvider;
+-  const AshaTriageApp({super.key, required this.triageProvider});
++  const AshaTriageApp({super.key});
+ 
+   @override
+   Widget build(BuildContext context) {
+     return MultiProvider(
+       providers: [
+-        ChangeNotifierProvider.value(value: triageProvider),
++        ChangeNotifierProvider(create: (_) => TriageProvider()),
+       ],
+       child: MaterialApp(
+         title: 'ASHA ट्राइएज',
+@@ -63,7 +46,8 @@ class AshaTriageApp extends StatelessWidget {
+   }
+ 
+   Widget _resolveHome() {
+-    // Always start with Language Selection for testing
+-    return const LanguageSelectionScreen();
++    final svc = OnboardingService.instance;
++    if (!svc.isOnboardingDone) return const OnboardingScreen();
++    return const SessionStartScreen();
+   }
+ }
+diff --git a/frontend/lib/models/session_model.dart b/frontend/lib/models/session_model.dart
+index 04096a2..28ff9a2 100644
+--- a/frontend/lib/models/session_model.dart
++++ b/frontend/lib/models/session_model.dart
+@@ -57,6 +57,8 @@ class SessionModel {
+   final bool isCompleted;
+   final bool referralGenerated;
+ 
++  final String? slipFilePath;
++
+   SessionModel({
+     String? id,
+     String? sessionCode,
+@@ -72,6 +74,7 @@ class SessionModel {
+     DateTime? startedAt,
+     this.isCompleted = false,
+     this.referralGenerated = false,
++    this.slipFilePath,
+   })  : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+         sessionCode = sessionCode ?? _generateCode(),
+         startedAt = startedAt ?? DateTime.now();
+@@ -94,6 +97,7 @@ class SessionModel {
+     String? triageLevel,
+     bool? isCompleted,
+     bool? referralGenerated,
++    String? slipFilePath,
+   }) {
+     return SessionModel(
+       id: id,
+@@ -110,6 +114,7 @@ class SessionModel {
+       startedAt: startedAt,
+       isCompleted: isCompleted ?? this.isCompleted,
+       referralGenerated: referralGenerated ?? this.referralGenerated,
++      slipFilePath: slipFilePath ?? this.slipFilePath,
+     );
+   }
+ 
+@@ -128,6 +133,7 @@ class SessionModel {
+     'started_at': startedAt.toIso8601String(),
+     'is_completed': isCompleted ? 1 : 0,
+     'referral_generated': referralGenerated ? 1 : 0,
++    'slip_file_path': slipFilePath,
+   };
+ 
+   factory SessionModel.fromMap(Map<String, dynamic> map) => SessionModel(
+@@ -149,5 +155,6 @@ class SessionModel {
+     startedAt: DateTime.parse(map['started_at']),
+     isCompleted: map['is_completed'] == 1,
+     referralGenerated: map['referral_generated'] == 1,
++    slipFilePath: map['slip_file_path'],
+   );
+ }
+diff --git a/frontend/lib/models/triage_result.dart b/frontend/lib/models/triage_result.dart
+index ea17fef..006edc0 100644
+--- a/frontend/lib/models/triage_result.dart
++++ b/frontend/lib/models/triage_result.dart
+@@ -36,22 +36,6 @@ class TriageResult {
+     }
+   }
+ 
+-  String get levelHindi {
+-    switch (category) {
+-      case TriageCategory.red:    return 'गंभीर स्थिति';
+-      case TriageCategory.yellow: return 'सतर्क रहें';
+-      case TriageCategory.green:  return 'सामान्य स्थिति';
+-    }
+-  }
+-
+-  String get levelSubtitle {
+-    switch (category) {
+-      case TriageCategory.red:    return 'तुरंत रेफर करें';
+-      case TriageCategory.yellow: return 'पीएचसी में जांच कराएं';
+-      case TriageCategory.green:  return 'घर पर देखभाल करें';
+-    }
+-  }
+-
+   String categoryLabelForLang(String lang) {
+     if (lang == 'hi') return categoryLabel;
+     if (lang == 'mr') {
+diff --git a/frontend/lib/providers/triage_provider.dart b/frontend/lib/providers/triage_provider.dart
+index 7264a30..1e1c632 100644
+--- a/frontend/lib/providers/triage_provider.dart
++++ b/frontend/lib/providers/triage_provider.dart
+@@ -6,7 +6,6 @@ import '../models/detected_concept.dart';
+ import '../services/database_service.dart';
+ import '../services/triage_engine.dart';
+ import '../utils/app_strings.dart';
+-import '../screens/result_screen.dart';
+ 
+ class TriageProvider extends ChangeNotifier {
+   SessionModel? _currentSession;
+@@ -15,28 +14,10 @@ class TriageProvider extends ChangeNotifier {
+   bool _isRecording = false;
+   bool _isProcessing = false;
+   String _selectedLanguage = 'hi';
+-  String currentTranscript = '';
+-  bool _servicesReady = false;
+-
+-  bool get servicesReady => _servicesReady;
+-
+-  set servicesReady(bool value) {
+-    _servicesReady = value;
+-    notifyListeners();
+-  }
+-
+-  String? initError;
+-  void setInitError(String error) {
+-    initError = error;
+-    notifyListeners();
+-  }
+-
+-  bool isAnalyzing = false;
+-  bool safetyNetTriggered = false;
+ 
+   
+   // Dynamic Confirmation state
+-  List<DetectedConcept> detectedConcepts = [];
++  List<DetectedConcept> _detectedConcepts = [];
+   int _currentConfirmationStep = 0;
+   final List<bool?> _confirmationAnswers = [];
+ 
+@@ -54,14 +35,8 @@ class TriageProvider extends ChangeNotifier {
+     notifyListeners();
+   }
+ 
+-  void setTranscript(String text) {
+-    currentTranscript = text;
+-    notifyListeners();
+-    analyzeTranscript();
+-  }
+-
+   List<String> get confirmationQuestions {
+-    final questions = detectedConcepts.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
++    final questions = _detectedConcepts.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
+     questions.add(AppStrings.get('safety_net_q', _selectedLanguage)); // Mandatory safety net
+     return questions;
+   }
+@@ -70,7 +45,7 @@ class TriageProvider extends ChangeNotifier {
+     _currentSession = session;
+     _transcribedText = '';
+     _currentResult = null;
+-    detectedConcepts = [];
++    _detectedConcepts = [];
+     _currentConfirmationStep = 0;
+     _confirmationAnswers.clear();
+     DatabaseService.instance.insertSession(session);
+@@ -95,36 +70,6 @@ class TriageProvider extends ChangeNotifier {
+     notifyListeners();
+   }
+ 
+-  Future<void> analyzeTranscript() async {
+-    isAnalyzing = true;
+-    notifyListeners();
+-
+-    await Future.delayed(const Duration(milliseconds: 500)); // allow UI to paint
+-
+-    final ageGroup = _currentSession?.patientAgeGroup?.name ?? 'ADULT';
+-    final duration = _currentSession?.symptomDuration?.name ?? 'TODAY';
+-
+-    try {
+-      detectedConcepts = TriageEngine.instance.analyzeText(
+-        currentTranscript,
+-        ageGroup,
+-        duration,
+-      );
+-    } catch (e) {
+-      debugPrint('Error analyzing text: $e');
+-      detectedConcepts = [];
+-    }
+-
+-    _currentConfirmationStep = 0;
+-    _confirmationAnswers.clear();
+-    for (int i = 0; i < confirmationQuestions.length; i++) {
+-      _confirmationAnswers.add(null);
+-    }
+-
+-    isAnalyzing = false;
+-    notifyListeners();
+-  }
+-
+   Future<void> analyzeTranscription() async {
+     _isProcessing = true;
+     notifyListeners();
+@@ -133,14 +78,14 @@ class TriageProvider extends ChangeNotifier {
+     await Future.delayed(const Duration(milliseconds: 500));
+     
+     try {
+-      detectedConcepts = TriageEngine.instance.analyzeText(
++      _detectedConcepts = TriageEngine.instance.analyzeText(
+         _transcribedText,
+         _currentSession?.patientAgeGroup?.name ?? 'ADULT',
+         _currentSession?.symptomDuration?.name ?? 'TODAY',
+       );
+     } catch (e) {
+       debugPrint('Error analyzing text: $e');
+-      detectedConcepts = [];
++      _detectedConcepts = [];
+     }
+     
+     _currentConfirmationStep = 0;
+@@ -160,8 +105,8 @@ class TriageProvider extends ChangeNotifier {
+     _confirmationAnswers[_currentConfirmationStep] = answer;
+     
+     // Also update the underlying concept, unless it's the safety net question
+-    if (detectedConcepts.isNotEmpty && _currentConfirmationStep < detectedConcepts.length) {
+-      detectedConcepts[_currentConfirmationStep].confirmed = answer;
++    if (_detectedConcepts.isNotEmpty && _currentConfirmationStep < _detectedConcepts.length) {
++      _detectedConcepts[_currentConfirmationStep].confirmed = answer;
+     }
+     
+     notifyListeners();
+@@ -182,36 +127,37 @@ class TriageProvider extends ChangeNotifier {
+     notifyListeners();
+   }
+ 
+-  Future<void> scoreAndNavigate() async {
++  TriageResult computeFinalTriage() {
++    // The safety net question is always the last question in the confirmationAnswers list
++    bool safetyNet = false;
++    if (_confirmationAnswers.isNotEmpty) {
++      safetyNet = _confirmationAnswers.last == true;
++    }
++    
+     final result = TriageEngine.instance.scoreTriage(
+-      concepts: detectedConcepts,
+-      safetyNetTriggered: safetyNetTriggered,
++      concepts: _detectedConcepts,
++      safetyNetTriggered: safetyNet,
+       sessionId: _currentSession?.id ?? 'unknown',
+-      transcribedText: currentTranscript,
++      transcribedText: _transcribedText,
+       ageGroup: _currentSession?.patientAgeGroup?.name ?? 'ADULT',
+       duration: _currentSession?.symptomDuration?.name ?? 'TODAY',
+     );
+     
+     setTriageResult(result);
+ 
+-    final confirmedLabels = detectedConcepts.where((c) => c.confirmed).map((c) => c.hindiLabel).toList();
+-    final confirmedJson = jsonEncode(confirmedLabels);
+-    final sessionCode = _currentSession?.sessionCode ?? result.sessionId;
+-    
+-    await DatabaseService.instance.saveSession(
+-      id: _currentSession?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+-      sessionCode: sessionCode,
+-      workerName: _currentSession?.ashaWorkerName ?? 'Unknown',
+-      patientAgeGroup: _currentSession?.patientAgeGroup?.name ?? 'ADULT',
+-      symptomDuration: _currentSession?.symptomDuration?.name ?? 'TODAY',
+-      rawTranscription: currentTranscript,
+-      confirmedConcepts: confirmedJson,
+-      triageLevel: result.category.name,
+-      timestamp: DateTime.now().toIso8601String(),
+-      referralGenerated: 0,
+-    );
++    // Save final session state
++    if (_currentSession != null) {
++      final confirmedConceptsList = _detectedConcepts.where((c) => c.confirmed).map((c) => c.conceptKey).toList();
++      
++      _currentSession = _currentSession!.copyWith(
++        isCompleted: true,
++        confirmedConcepts: confirmedConceptsList,
++        triageLevel: result.category.name,
++      );
++      DatabaseService.instance.updateSession(_currentSession!);
++    }
+ 
+-    print('SESSION SAVED $sessionCode');
++    return result;
+   }
+ 
+   void markReferralGenerated() {
+@@ -222,13 +168,20 @@ class TriageProvider extends ChangeNotifier {
+     }
+   }
+ 
++  void updateSession(SessionModel updatedSession) {
++    if (_currentSession?.id == updatedSession.id) {
++      _currentSession = updatedSession;
++      notifyListeners();
++    }
++  }
++
+   void reset() {
+     _currentSession = null;
+     _currentResult  = null;
+     _transcribedText = '';
+     _isRecording = false;
+     _isProcessing = false;
+-    detectedConcepts = [];
++    _detectedConcepts = [];
+     _currentConfirmationStep = 0;
+     _confirmationAnswers.clear();
+     notifyListeners();
+diff --git a/frontend/lib/screens/confirmation_screen.dart b/frontend/lib/screens/confirmation_screen.dart
+index b1219f2..59c83ac 100644
+--- a/frontend/lib/screens/confirmation_screen.dart
++++ b/frontend/lib/screens/confirmation_screen.dart
+@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
+ import 'package:provider/provider.dart';
+ import '../app_theme.dart';
+ import '../providers/triage_provider.dart';
++import '../utils/app_strings.dart';
+ import 'result_screen.dart';
+ 
+ class ConfirmationScreen extends StatefulWidget {
+@@ -12,112 +13,61 @@ class ConfirmationScreen extends StatefulWidget {
+   State<ConfirmationScreen> createState() => _ConfirmationScreenState();
+ }
+ 
+-class _ConfirmationScreenState extends State<ConfirmationScreen> {
+-  int index = 0;
++class _ConfirmationScreenState extends State<ConfirmationScreen>
++    with SingleTickerProviderStateMixin {
++  late AnimationController _slideCtrl;
++  late Animation<Offset> _slideAnim;
+ 
+-  void _onAnswer(bool value) {
+-    final provider = context.read<TriageProvider>();
+-    final concepts = provider.detectedConcepts;
++  @override
++  void initState() {
++    super.initState();
++    _slideCtrl = AnimationController(vsync: this,
++        duration: const Duration(milliseconds: 350));
++    _slideAnim = Tween<Offset>(begin: const Offset(0.3, 0), end: Offset.zero)
++        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
++    _slideCtrl.forward();
++  }
+ 
+-    if (index < concepts.length) {
+-      provider.confirmationAnswers[index] = value;
+-      concepts[index].confirmed = value;
+-      setState(() {
+-        index++;
+-      });
+-    } else {
+-      // Safety net answered
+-      provider.safetyNetTriggered = value;
+-      provider.scoreAndNavigate();
+-    }
++  @override
++  void dispose() {
++    _slideCtrl.dispose();
++    super.dispose();
+   }
+ 
+-  Widget _buildBody(BuildContext context, TriageProvider provider, List<dynamic> concepts) {
++  void _answer(BuildContext context, bool value) async {
++    final provider = context.read<TriageProvider>();
++    provider.answerConfirmation(value);
++    final done = provider.nextConfirmationStep();
+ 
+-    if (index >= concepts.length) {
+-      // Show full screen safety net question
+-      return Scaffold(
+-        backgroundColor: AppTheme.bgPage,
+-        body: SafeArea(
+-          child: Padding(
+-            padding: const EdgeInsets.all(32.0),
+-            child: Column(
+-              mainAxisAlignment: MainAxisAlignment.center,
+-              children: [
+-                Text(
+-                  'क्या मरीज की हालत आपको बहुत गंभीर लग रही है?',
+-                  textAlign: TextAlign.center,
+-                  style: GoogleFonts.poppins(
+-                    fontSize: 26,
+-                    fontWeight: FontWeight.w700,
+-                    color: AppTheme.textDark,
+-                    height: 1.4,
+-                  ),
+-                ),
+-                const SizedBox(height: 60),
+-                SizedBox(
+-                  width: double.infinity,
+-                  child: ElevatedButton(
+-                    style: ElevatedButton.styleFrom(
+-                      backgroundColor: Colors.green,
+-                      padding: const EdgeInsets.symmetric(vertical: 20),
+-                      shape: RoundedRectangleBorder(
+-                        borderRadius: BorderRadius.circular(16),
+-                      ),
+-                      elevation: 4,
+-                    ),
+-                    onPressed: () => _onAnswer(true),
+-                    child: Text(
+-                      'हाँ',
+-                      style: GoogleFonts.poppins(
+-                        fontSize: 22,
+-                        fontWeight: FontWeight.w700,
+-                        color: Colors.white,
+-                      ),
+-                    ),
+-                  ),
+-                ),
+-                const SizedBox(height: 20),
+-                SizedBox(
+-                  width: double.infinity,
+-                  child: ElevatedButton(
+-                    style: ElevatedButton.styleFrom(
+-                      backgroundColor: Colors.red,
+-                      padding: const EdgeInsets.symmetric(vertical: 20),
+-                      shape: RoundedRectangleBorder(
+-                        borderRadius: BorderRadius.circular(16),
+-                      ),
+-                      elevation: 4,
+-                    ),
+-                    onPressed: () => _onAnswer(false),
+-                    child: Text(
+-                      'नहीं',
+-                      style: GoogleFonts.poppins(
+-                        fontSize: 22,
+-                        fontWeight: FontWeight.w700,
+-                        color: Colors.white,
+-                      ),
+-                    ),
+-                  ),
+-                ),
+-              ],
+-            ),
+-          ),
+-        ),
+-      );
++    if (done) {
++      // Compute triage
++      setState(() {});
++      provider.computeFinalTriage();
++      if (!mounted) return;
++      Navigator.of(context).pushReplacement(
++          MaterialPageRoute(builder: (_) => const ResultScreen()));
++    } else {
++      // Animate to next question
++      _slideCtrl.reset();
++      _slideCtrl.forward();
++      setState(() {});
+     }
++  }
+ 
+-    // Standard question with progress indicator
+-    final total = concepts.length;
+-    final progress = (index + 1) / total;
+-    final currentQuestionText = concepts[index].confirmationQuestion;
++  @override
++  Widget build(BuildContext context) {
++    final provider = context.watch<TriageProvider>();
++    final total = provider.confirmationQuestions.length;
++    final current = provider.confirmationStep;
++    final progress = (current + 1) / total;
++    final lang = provider.selectedLanguage;
+ 
+     return Scaffold(
+       backgroundColor: AppTheme.bgPage,
+       body: SafeArea(
+         child: Column(
+           children: [
+-            // Header with progress
++            // ── Header with Progress ──
+             Container(
+               color: AppTheme.bgWhite,
+               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+@@ -126,13 +76,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
+                   Row(
+                     children: [
+                       GestureDetector(
+-                        onTap: () {
+-                          if (index > 0) {
+-                            setState(() => index--);
+-                          } else {
+-                            Navigator.pop(context);
+-                          }
+-                        },
++                        onTap: () => Navigator.pop(context),
+                         child: Container(
+                           width: 36, height: 36,
+                           decoration: BoxDecoration(
+@@ -144,7 +88,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
+                         ),
+                       ),
+                       const Spacer(),
+-                      Text('प्रश्न ${index + 1}/$total',
++                      Text('${AppStrings.get('question_prefix', lang)} ${current + 1}/$total',
+                           style: GoogleFonts.poppins(
+                               color: AppTheme.primary, fontSize: 14,
+                               fontWeight: FontWeight.w700)),
+@@ -157,76 +101,139 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
+                       value: progress,
+                       minHeight: 6,
+                       backgroundColor: AppTheme.borderColor,
+-                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
++                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                     ),
+                   ),
+                 ],
+               ),
+             ),
+-            
++
+             Expanded(
+               child: Padding(
+-                padding: const EdgeInsets.all(32.0),
+-                child: Column(
+-                  mainAxisAlignment: MainAxisAlignment.center,
+-                  children: [
+-                    Text(
+-                      currentQuestionText,
+-                      textAlign: TextAlign.center,
+-                      style: GoogleFonts.poppins(
+-                        fontSize: 26,
+-                        fontWeight: FontWeight.w700,
+-                        color: AppTheme.textDark,
+-                        height: 1.4,
++                padding: const EdgeInsets.all(22),
++                child: SlideTransition(
++                  position: _slideAnim,
++                  child: Column(
++                    children: [
++                      const SizedBox(height: 20),
++
++                      // ── Warning Icon ──
++                      Container(
++                        width: 80, height: 80,
++                        decoration: BoxDecoration(
++                          color: const Color(0xFFFFF3CD),
++                          shape: BoxShape.circle,
++                          border: Border.all(
++                              color: const Color(0xFFFFC107).withOpacity(0.4),
++                              width: 2),
++                        ),
++                        child: const Icon(Icons.warning_amber_rounded,
++                            color: Color(0xFFF57F17), size: 42),
+                       ),
+-                    ),
+-                    const SizedBox(height: 60),
+-                    SizedBox(
+-                      width: double.infinity,
+-                      child: ElevatedButton(
+-                        style: ElevatedButton.styleFrom(
+-                          backgroundColor: Colors.green,
+-                          padding: const EdgeInsets.symmetric(vertical: 20),
+-                          shape: RoundedRectangleBorder(
++
++                      const SizedBox(height: 28),
++
++                      // ── Question ──
++                      Text(
++                        provider.currentQuestion,
++                        textAlign: TextAlign.center,
++                        style: GoogleFonts.poppins(
++                            color: AppTheme.textDark, fontSize: 20,
++                            fontWeight: FontWeight.w700, height: 1.4),
++                      ),
++
++                      const SizedBox(height: 12),
++
++                      Text(AppStrings.get('pay_attention', lang),
++                          textAlign: TextAlign.center,
++                          style: GoogleFonts.poppins(
++                              color: AppTheme.textLight, fontSize: 13)),
++
++                      const Spacer(),
++
++                      // ── YES Button ──
++                      GestureDetector(
++                        onTap: () => _answer(context, true),
++                        child: Container(
++                          width: double.infinity,
++                          padding: const EdgeInsets.symmetric(vertical: 18),
++                          decoration: BoxDecoration(
++                            gradient: AppTheme.redGradient,
+                             borderRadius: BorderRadius.circular(16),
++                            boxShadow: [
++                              BoxShadow(
++                                color: AppTheme.triageRed.withOpacity(0.35),
++                                blurRadius: 16, offset: const Offset(0, 6),
++                              ),
++                            ],
+                           ),
+-                          elevation: 4,
+-                        ),
+-                        onPressed: () => _onAnswer(true),
+-                        child: Text(
+-                          'हाँ',
+-                          style: GoogleFonts.poppins(
+-                            fontSize: 22,
+-                            fontWeight: FontWeight.w700,
+-                            color: Colors.white,
++                          child: Row(
++                            mainAxisAlignment: MainAxisAlignment.center,
++                            children: [
++                              const Icon(Icons.check_rounded,
++                                  color: Colors.white, size: 22),
++                              const SizedBox(width: 10),
++                              Text(AppStrings.get('yes_severe', lang),
++                                  style: GoogleFonts.poppins(
++                                      color: Colors.white, fontSize: 17,
++                                      fontWeight: FontWeight.w700)),
++                            ],
+                           ),
+                         ),
+                       ),
+-                    ),
+-                    const SizedBox(height: 20),
+-                    SizedBox(
+-                      width: double.infinity,
+-                      child: ElevatedButton(
+-                        style: ElevatedButton.styleFrom(
+-                          backgroundColor: Colors.red,
+-                          padding: const EdgeInsets.symmetric(vertical: 20),
+-                          shape: RoundedRectangleBorder(
++
++                      const SizedBox(height: 14),
++
++                      // ── NO Button ──
++                      GestureDetector(
++                        onTap: () => _answer(context, false),
++                        child: Container(
++                          width: double.infinity,
++                          padding: const EdgeInsets.symmetric(vertical: 18),
++                          decoration: BoxDecoration(
++                            color: AppTheme.bgWhite,
+                             borderRadius: BorderRadius.circular(16),
++                            border: Border.all(
++                                color: AppTheme.borderColor, width: 1.5),
++                            boxShadow: AppTheme.cardShadow,
+                           ),
+-                          elevation: 4,
+-                        ),
+-                        onPressed: () => _onAnswer(false),
+-                        child: Text(
+-                          'नहीं',
+-                          style: GoogleFonts.poppins(
+-                            fontSize: 22,
+-                            fontWeight: FontWeight.w700,
+-                            color: Colors.white,
++                          child: Row(
++                            mainAxisAlignment: MainAxisAlignment.center,
++                            children: [
++                              Icon(Icons.close_rounded,
++                                  color: AppTheme.textMedium, size: 22),
++                              const SizedBox(width: 10),
++                              Text(AppStrings.get('no_normal', lang),
++                                  style: GoogleFonts.poppins(
++                                      color: AppTheme.textMedium, fontSize: 17,
++                                      fontWeight: FontWeight.w600)),
++                            ],
+                           ),
+                         ),
+                       ),
+-                    ),
+-                  ],
++
++                      const SizedBox(height: 30),
++
++                      // ── Step Dots ──
++                      Row(
++                        mainAxisAlignment: MainAxisAlignment.center,
++                        children: List.generate(total, (i) => AnimatedContainer(
++                          duration: const Duration(milliseconds: 300),
++                          width: i == current ? 24 : 8,
++                          height: 8,
++                          margin: const EdgeInsets.symmetric(horizontal: 3),
++                          decoration: BoxDecoration(
++                            color: i == current ? AppTheme.primary
++                                : (i < current ? AppTheme.primaryLight.withOpacity(0.4)
++                                    : AppTheme.borderColor),
++                            borderRadius: BorderRadius.circular(4),
++                          ),
++                        )),
++                      ),
++
++                      const SizedBox(height: 20),
++                    ],
++                  ),
+                 ),
+               ),
+             ),
+@@ -235,30 +242,4 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
+       ),
+     );
+   }
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    final provider = context.watch<TriageProvider>();
+-    final concepts = provider.detectedConcepts;
+-
+-    return Stack(
+-      children: [
+-        _buildBody(context, provider, concepts),
+-        Consumer<TriageProvider>(
+-          builder: (context, prov, child) {
+-            if (prov.currentResult != null) {
+-              WidgetsBinding.instance.addPostFrameCallback((_) {
+-                if (mounted) {
+-                  Navigator.of(context).pushReplacement(
+-                    MaterialPageRoute(builder: (_) => const ResultScreen()),
+-                  );
+-                }
+-              });
+-            }
+-            return const SizedBox.shrink();
+-          },
+-        ),
+-      ],
+-    );
+-  }
+ }
+diff --git a/frontend/lib/screens/onboarding_screen.dart b/frontend/lib/screens/onboarding_screen.dart
+index 9490780..e74ce47 100644
+--- a/frontend/lib/screens/onboarding_screen.dart
++++ b/frontend/lib/screens/onboarding_screen.dart
+@@ -1,10 +1,10 @@
+ import 'package:flutter/material.dart';
+ import 'package:google_fonts/google_fonts.dart';
+-import 'package:provider/provider.dart';
++import '../app_theme.dart';
+ import '../services/onboarding_service.dart';
+-import '../services/stt_service.dart';
+-import '../providers/triage_provider.dart';
+ import 'session_start_screen.dart';
++import 'package:provider/provider.dart';
++import '../providers/triage_provider.dart';
+ 
+ class OnboardingScreen extends StatefulWidget {
+   const OnboardingScreen({super.key});
+@@ -13,349 +13,151 @@ class OnboardingScreen extends StatefulWidget {
+   State<OnboardingScreen> createState() => _OnboardingScreenState();
+ }
+ 
+-class _OnboardingScreenState extends State<OnboardingScreen> {
+-  bool _isChecking = false;
+-  OfflineModelStatus _status = OfflineModelStatus.unknown;
+-  bool _showEnglish = false;
++class _OnboardingScreenState extends State<OnboardingScreen>
++    with TickerProviderStateMixin {
++  late AnimationController _fadeCtrl;
++  late AnimationController _slideCtrl;
++  late Animation<double> _fadeAnim;
++  late Animation<Offset> _slideAnim;
+ 
+   @override
+   void initState() {
+     super.initState();
+-    WidgetsBinding.instance.addPostFrameCallback((_) {
+-      _checkStatus();
++    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
++    _slideCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
++    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
++    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
++        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
++    Future.delayed(const Duration(milliseconds: 200), () {
++      if (mounted) {
++        _fadeCtrl.forward();
++        _slideCtrl.forward();
++      }
+     });
+   }
+ 
+-  String _getLocaleForLang(String langCode) {
+-    if (langCode == 'hi') return 'hi_IN';
+-    if (langCode == 'mr') return 'mr_IN';
+-    return 'en_IN';
+-  }
+-
+-  String _getDisplayLang(String langCode) {
+-    if (langCode == 'hi') return 'हिंदी / Hindi';
+-    if (langCode == 'mr') return 'मराठी / Marathi';
+-    return 'English';
+-  }
+-
+-  Future<void> _checkStatus() async {
+-    if (!mounted) return;
+-    setState(() => _isChecking = true);
+-
+-    final langCode = context.read<TriageProvider>().selectedLanguage;
+-    final localeId = _getLocaleForLang(langCode);
+-
+-    _status = await SttService.instance.isLocaleAvailable(localeId);
+-
+-    if (!mounted) return;
+-    setState(() => _isChecking = false);
+-
+-    if (_status == OfflineModelStatus.available) {
+-      await OnboardingService.instance.completeOnboarding('ASHA कार्यकर्ता', language: langCode);
+-      if (!mounted) return;
+-      Navigator.of(context).pushReplacement(
+-        MaterialPageRoute(builder: (_) => const SessionStartScreen()),
+-      );
+-    }
++  @override
++  void dispose() {
++    _fadeCtrl.dispose();
++    _slideCtrl.dispose();
++    super.dispose();
+   }
+ 
+-  Future<void> _runManualCheck() async {
+-    if (_isChecking) return;
+-    await _checkStatus();
++  void _proceed(String langCode, String langName) async {
++    await OnboardingService.instance.completeOnboarding('ASHA Worker', language: langCode);
+     if (!mounted) return;
+-
+-    if (_status != OfflineModelStatus.available) {
+-      ScaffoldMessenger.of(context).showSnackBar(
+-        SnackBar(
+-          content: Text(
+-            _showEnglish ? "Model still not found. Please download." : "मॉडल अभी भी नहीं मिला। कृपया डाउनलोड करें।",
+-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
+-          ),
+-          backgroundColor: const Color(0xFFD32F2F),
+-          duration: const Duration(seconds: 4),
+-        ),
+-      );
+-    }
+-  }
+-
+-  Widget _buildStatusCard(String title, OfflineModelStatus status) {
+-    IconData icon;
+-    Color iconColor;
+-    String statusText;
+-
+-    switch (status) {
+-      case OfflineModelStatus.available:
+-        icon = Icons.check_circle;
+-        iconColor = Colors.green;
+-        statusText = _showEnglish ? "Ready" : "तैयार है";
+-        break;
+-      case OfflineModelStatus.offlineModelMissing:
+-        icon = Icons.warning;
+-        iconColor = Colors.orange;
+-        statusText = _showEnglish ? "Offline model needed" : "ऑफ़लाइन मॉडल चाहिए";
+-        break;
+-      case OfflineModelStatus.languagePackMissing:
+-        icon = Icons.error;
+-        iconColor = Colors.red;
+-        statusText = _showEnglish ? "Language pack needed" : "भाषा पैक चाहिए";
+-        break;
+-      case OfflineModelStatus.unknown:
+-      default:
+-        icon = Icons.help;
+-        iconColor = Colors.grey;
+-        statusText = _showEnglish ? "Checking..." : "जांच हो रही है...";
+-        break;
+-    }
+-
+-    return Container(
+-      padding: const EdgeInsets.all(16),
+-      margin: const EdgeInsets.only(bottom: 12),
+-      decoration: BoxDecoration(
+-        color: const Color(0xFF1C2230),
+-        borderRadius: BorderRadius.circular(16),
+-      ),
+-      child: Row(
+-        children: [
+-          Text(
+-            title,
+-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+-          ),
+-          const SizedBox(width: 8),
+-          Expanded(
+-            child: Row(
+-              mainAxisAlignment: MainAxisAlignment.end,
+-              children: [
+-                Flexible(
+-                  child: Text(
+-                    statusText,
+-                    style: GoogleFonts.poppins(color: iconColor, fontSize: 14),
+-                    textAlign: TextAlign.right,
+-                  ),
+-                ),
+-                const SizedBox(width: 8),
+-                Icon(icon, color: iconColor, size: 24),
+-              ],
+-            ),
+-          ),
+-        ],
++    context.read<TriageProvider>().setLanguage(langCode);
++    Navigator.of(context).pushReplacement(
++      PageRouteBuilder(
++        pageBuilder: (_, __, ___) => const SessionStartScreen(),
++        transitionsBuilder: (_, anim, __, child) =>
++            FadeTransition(opacity: anim, child: child),
++        transitionDuration: const Duration(milliseconds: 400),
+       ),
+     );
+   }
+ 
+-  Widget _buildInstructions() {
+-    if (_status == OfflineModelStatus.available || _status == OfflineModelStatus.unknown) {
+-      return const SizedBox.shrink();
+-    }
+-
+-    bool needsLanguagePack = _status == OfflineModelStatus.languagePackMissing;
+-    final langCode = context.read<TriageProvider>().selectedLanguage;
+-    final displayLang = _getDisplayLang(langCode).split(' / ').last; // "Hindi", "Marathi", "English"
+-    final displayLangLocal = _getDisplayLang(langCode).split(' / ')[0]; // "हिंदी", "मराठी", "English"
+-
+-    String title;
+-    List<String> steps;
+-
+-    if (needsLanguagePack) {
+-      if (_showEnglish) {
+-        title = "How to install language pack";
+-        steps = [
+-          "1. Tap 'Language Settings' button below",
+-          "2. Tap 'Add a language'",
+-          "3. Search and install '$displayLang'",
+-          "4. Come back and tap 'Check Again'",
+-        ];
+-      } else {
+-        title = "भाषा पैक कैसे इंस्टॉल करें";
+-        steps = [
+-          "1. नीचे 'भाषा सेटिंग्स' बटन दबाएं",
+-          "2. 'Add a language' चुनें",
+-          "3. '$displayLangLocal' खोजें और इंस्टॉल करें",
+-          "4. वापस आएं और 'जांचें' दबाएं",
+-        ];
+-      }
+-    } else {
+-      // Offline model missing
+-      if (_showEnglish) {
+-        title = "How to enable offline speech";
+-        steps = [
+-          "1. Tap 'Open Google Settings' below",
+-          "2. LONG PRESS on '$displayLang' to make it Primary",
+-          "3. Wait for the model to download (if needed)",
+-          "4. Come back and tap 'Check Again'",
+-        ];
+-      } else {
+-        title = "ऑफलाइन मॉडल कैसे चालू करें";
+-        steps = [
+-          "1. नीचे 'Google सेटिंग्स' बटन दबाएं",
+-          "2. '$displayLang' पर LONG PRESS करके उसे Primary बनाएं",
+-          "3. डाउनलोड पूरा होने दें",
+-          "4. वापस आकर 'जांचें' बटन दबाएं",
+-        ];
+-      }
+-    }
+-
+-    return Container(
+-      width: double.infinity,
+-      padding: const EdgeInsets.all(20.0),
+-      decoration: BoxDecoration(
+-        color: const Color(0xFF1C2230),
++  Widget _langButton(String title, String subtitle, String code, IconData icon) {
++    return Padding(
++      padding: const EdgeInsets.only(bottom: 16),
++      child: InkWell(
++        onTap: () => _proceed(code, title),
+         borderRadius: BorderRadius.circular(16),
+-      ),
+-      child: Column(
+-        crossAxisAlignment: CrossAxisAlignment.start,
+-        children: [
+-          Text(
+-            title,
+-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
++        child: Container(
++          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
++          decoration: BoxDecoration(
++            color: Colors.white,
++            borderRadius: BorderRadius.circular(16),
++            boxShadow: AppTheme.cardShadow,
++            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.1)),
+           ),
+-          const SizedBox(height: 12),
+-          ...steps.map((step) => Padding(
+-                padding: const EdgeInsets.only(bottom: 8.0),
+-                child: Text(
+-                  step,
+-                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
++          child: Row(
++            children: [
++              Container(
++                padding: const EdgeInsets.all(12),
++                decoration: BoxDecoration(
++                  color: AppTheme.primary.withValues(alpha: 0.1),
++                  shape: BoxShape.circle,
+                 ),
+-              )),
+-        ],
+-      ),
+-    );
+-  }
+-
+-  Widget _buildNoteBox() {
+-    return Container(
+-      width: double.infinity,
+-      margin: const EdgeInsets.symmetric(vertical: 20),
+-      padding: const EdgeInsets.all(16),
+-      decoration: BoxDecoration(
+-        color: const Color(0xFF1C2230),
+-        border: const Border(left: BorderSide(color: Color(0xFFF9A825), width: 4)),
+-        borderRadius: BorderRadius.circular(8),
+-      ),
+-      child: Text(
+-        _showEnglish
+-            ? "⚠ Note: Internet is required once to download the model.\nAfter downloading, the app works fully offline."
+-            : "⚠ ध्यान दें: डाउनलोड के लिए एक बार इंटरनेट चाहिए।\nडाउनलोड के बाद ऐप पूरी तरह ऑफलाइन काम करेगा।",
+-        style: GoogleFonts.poppins(color: Colors.white, fontSize: 14),
++                child: Icon(icon, color: AppTheme.primary, size: 24),
++              ),
++              const SizedBox(width: 16),
++              Expanded(
++                child: Text(title, style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
++              ),
++              const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppTheme.textLight),
++            ],
++          ),
++        ),
+       ),
+     );
+   }
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final langCode = context.watch<TriageProvider>().selectedLanguage;
+-
+-    return PopScope(
+-      canPop: false,
+-      child: Scaffold(
+-        backgroundColor: const Color(0xFF0D1117),
+-        body: SafeArea(
+-          child: Padding(
+-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+-            child: Column(
+-              crossAxisAlignment: CrossAxisAlignment.center,
+-              children: [
+-                Row(
+-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
++    return Scaffold(
++      body: Container(
++        decoration: const BoxDecoration(
++          gradient: LinearGradient(
++            begin: Alignment.topCenter,
++            end: Alignment.bottomCenter,
++            colors: [Color(0xFFF0EEFF), Color(0xFFFFFFFF)],
++          ),
++        ),
++        child: SafeArea(
++          child: FadeTransition(
++            opacity: _fadeAnim,
++            child: SlideTransition(
++              position: _slideAnim,
++              child: Padding(
++                padding: const EdgeInsets.symmetric(horizontal: 28),
++                child: Column(
+                   children: [
+-                    Text(
+-                      "ASHA Triage",
+-                      style: GoogleFonts.poppins(
+-                        fontSize: 32,
+-                        fontWeight: FontWeight.bold,
+-                        color: Colors.white,
++                    const SizedBox(height: 40),
++
++                    // ── App Badge ──
++                    Container(
++                      width: 72,
++                      height: 72,
++                      decoration: BoxDecoration(
++                        gradient: AppTheme.primaryGradient,
++                        borderRadius: BorderRadius.circular(20),
++                        boxShadow: AppTheme.buttonShadow,
+                       ),
++                      child: const Icon(Icons.health_and_safety_rounded,
++                          color: Colors.white, size: 38),
+                     ),
+-                    ElevatedButton(
+-                      style: ElevatedButton.styleFrom(
+-                        backgroundColor: const Color(0xFF1C2230),
+-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+-                      ),
+-                      onPressed: () {
+-                        setState(() {
+-                          _showEnglish = !_showEnglish;
+-                        });
+-                      },
+-                      child: Text(
+-                        _showEnglish ? "हिंदी" : "English",
+-                        style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold),
+-                      ),
+-                    ),
+-                  ],
+-                ),
+-                const SizedBox(height: 24),
+-                _buildStatusCard(_getDisplayLang(langCode), _status),
+-                const SizedBox(height: 12),
+-                Expanded(
+-                  child: SingleChildScrollView(
+-                     child: Column(
+-                      children: [
+-                        _buildInstructions(),
+-                        _buildNoteBox(),
+-                      ],
+-                    ),
+-                  ),
+-                ),
+-                if (_isChecking)
+-                  const Padding(
+-                    padding: EdgeInsets.symmetric(vertical: 24.0),
+-                    child: Center(
+-                      child: CircularProgressIndicator(
+-                        color: Colors.white,
+-                      ),
+-                    ),
+-                  )
+-                else ...[
+-                  SizedBox(
+-                    width: double.infinity,
+-                    height: 72,
+-                    child: ElevatedButton(
+-                      style: ElevatedButton.styleFrom(
+-                        backgroundColor: const Color(0xFF1565C0),
+-                        shape: RoundedRectangleBorder(
+-                          borderRadius: BorderRadius.circular(16),
+-                        ),
+-                      ),
+-                      onPressed: () async {
+-                        if (_status == OfflineModelStatus.languagePackMissing) {
+-                          await OnboardingService.instance.openSpeechSettings();
+-                        } else {
+-                          await OnboardingService.instance.openGoogleOfflineSpeechSettings();
+-                        }
+-                      },
+-                      child: Text(
+-                        _showEnglish ? "📥  Open Google Settings" : "📥  Google सेटिंग्स खोलें",
++                    const SizedBox(height: 20),
++
++                    // ── Title ──
++                    Text('Welcome Asha Worker',
++                        textAlign: TextAlign.center,
+                         style: GoogleFonts.poppins(
+-                          fontSize: 18,
+-                          fontWeight: FontWeight.bold,
+-                          color: Colors.white,
+-                        ),
+-                      ),
+-                    ),
+-                  ),
+-                  const SizedBox(height: 12),
+-                  SizedBox(
+-                    width: double.infinity,
+-                    height: 72,
+-                    child: ElevatedButton(
+-                      style: ElevatedButton.styleFrom(
+-                        backgroundColor: const Color(0xFF1C2230),
+-                        shape: RoundedRectangleBorder(
+-                          borderRadius: BorderRadius.circular(16),
+-                        ),
+-                      ),
+-                      onPressed: _runManualCheck,
+-                      child: Text(
+-                        _showEnglish ? "🔄  Check Again — Model found?" : "🔄  जांचें — मॉडल मिला?",
++                            fontSize: 30, fontWeight: FontWeight.w800,
++                            color: AppTheme.textDark)),
++                    const SizedBox(height: 6),
++                    Text('choose language',
+                         style: GoogleFonts.poppins(
+-                          fontSize: 18,
+-                          fontWeight: FontWeight.bold,
+-                          color: Colors.white,
++                            fontSize: 16, color: AppTheme.textMedium,
++                            fontWeight: FontWeight.w500)),
++
++                    const SizedBox(height: 40),
++
++                    Expanded(
++                        child: SingleChildScrollView(
++                          physics: const BouncingScrollPhysics(),
++                          child: Column(
++                            children: [
++                              _langButton('English', '', 'en', Icons.language),
++                              _langButton('Hindi', '', 'hi', Icons.translate),
++                              _langButton('Marathi', '', 'mr', Icons.translate),
++                            ],
++                          ),
+                         ),
+                       ),
+-                    ),
+-                  ),
+-                ],
+-              ],
++                  ],
++                ),
++              ),
+             ),
+           ),
+         ),
+diff --git a/frontend/lib/screens/profile_screen.dart b/frontend/lib/screens/profile_screen.dart
+index 6e1c8d7..9fda018 100644
+--- a/frontend/lib/screens/profile_screen.dart
++++ b/frontend/lib/screens/profile_screen.dart
+@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
+ import '../app_theme.dart';
+ import '../services/database_service.dart';
+ import '../services/onboarding_service.dart';
++import 'package:open_filex/open_filex.dart';
+ import '../models/session_model.dart';
+ 
+ class ProfileScreen extends StatefulWidget {
+@@ -16,6 +17,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
+   Map<String, int> _stats = {};
+   List<SessionModel> _recentSessions = [];
+   bool _isLoading = true;
++  String _searchQuery = '';
+ 
+   @override
+   void initState() {
+@@ -25,7 +27,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
+ 
+   Future<void> _loadData() async {
+     final stats = await DatabaseService.instance.getWorkerStats();
+-    final sessions = await DatabaseService.instance.getRecentSessions(limit: 10);
++    final sessions = _searchQuery.trim().isEmpty
++        ? await DatabaseService.instance.getRecentSessions(limit: 50)
++        : await DatabaseService.instance.searchSessions(_searchQuery.trim());
+     if (mounted) {
+       setState(() {
+         _stats = stats;
+@@ -98,22 +102,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
+                             _buildStatsGrid(),
+                             const SizedBox(height: 24),
+ 
+-                            // ── Recent Patients ──
++                            // ── Patient List Header ──
+                             Row(
+                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                               children: [
+-                                Text('Recent Patients',
++                                Text('Patients List',
+                                     style: GoogleFonts.poppins(
+                                         fontSize: 16,
+                                         fontWeight: FontWeight.w700,
+                                         color: AppTheme.textDark)),
+-                                Text('Last 10',
++                                Text(_searchQuery.isEmpty ? 'Recent 50' : 'Search Results',
+                                     style: GoogleFonts.poppins(
+                                         fontSize: 12,
+                                         color: AppTheme.textLight)),
+                               ],
+                             ),
+                             const SizedBox(height: 12),
++                            
++                            // ── Search Bar ──
++                            Container(
++                              decoration: BoxDecoration(
++                                color: Colors.white,
++                                borderRadius: BorderRadius.circular(14),
++                                border: Border.all(color: AppTheme.divider),
++                              ),
++                              child: TextField(
++                                onChanged: (val) {
++                                  _searchQuery = val;
++                                  _loadData();
++                                },
++                                decoration: InputDecoration(
++                                  hintText: 'Search by name or ID...',
++                                  hintStyle: GoogleFonts.poppins(fontSize: 14, color: AppTheme.textLight),
++                                  prefixIcon: Icon(Icons.search_rounded, color: AppTheme.textMedium),
++                                  border: InputBorder.none,
++                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
++                                ),
++                              ),
++                            ),
++                            const SizedBox(height: 16),
++
+                             _buildRecentPatients(),
+                             const SizedBox(height: 24),
+                           ],
+@@ -441,19 +469,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
+                   ],
+                 ),
+               ),
+-              Container(
+-                padding:
+-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+-                decoration: BoxDecoration(
+-                  color: levelColor.withOpacity(0.12),
+-                  borderRadius: BorderRadius.circular(8),
++              if (session.slipFilePath != null)
++                IconButton(
++                  icon: Icon(Icons.picture_as_pdf_rounded, color: AppTheme.primary, size: 24),
++                  tooltip: 'View Referral Slip',
++                  onPressed: () {
++                    OpenFilex.open(session.slipFilePath!);
++                  },
++                )
++              else
++                Container(
++                  padding:
++                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
++                  decoration: BoxDecoration(
++                    color: levelColor.withOpacity(0.12),
++                    borderRadius: BorderRadius.circular(8),
++                  ),
++                  child: Text(levelLabel,
++                      style: GoogleFonts.poppins(
++                          color: levelColor,
++                          fontSize: 11,
++                          fontWeight: FontWeight.w600)),
+                 ),
+-                child: Text(levelLabel,
+-                    style: GoogleFonts.poppins(
+-                        color: levelColor,
+-                        fontSize: 11,
+-                        fontWeight: FontWeight.w600)),
+-              ),
+             ],
+           ),
+         ),
+diff --git a/frontend/lib/screens/referral_screen.dart b/frontend/lib/screens/referral_screen.dart
+index 46e93c0..156e7be 100644
+--- a/frontend/lib/screens/referral_screen.dart
++++ b/frontend/lib/screens/referral_screen.dart
+@@ -1,15 +1,214 @@
++import 'dart:io';
++import 'dart:typed_data';
++import 'dart:ui' as ui;
+ import 'package:flutter/material.dart';
++import 'package:flutter/rendering.dart';
+ import 'package:google_fonts/google_fonts.dart';
+ import 'package:provider/provider.dart';
++import 'package:path_provider/path_provider.dart';
++import 'package:pdf/pdf.dart';
++import 'package:pdf/widgets.dart' as pw;
++import 'package:share_plus/share_plus.dart';
++import 'package:qr_flutter/qr_flutter.dart';
+ import '../app_theme.dart';
+ import '../providers/triage_provider.dart';
+ import '../models/session_model.dart';
+-import '../services/followup_service.dart';
++import '../services/database_service.dart';
+ import 'session_start_screen.dart';
+ 
+-class ReferralScreen extends StatelessWidget {
++class ReferralScreen extends StatefulWidget {
+   const ReferralScreen({super.key});
+ 
++  @override
++  State<ReferralScreen> createState() => _ReferralScreenState();
++}
++
++class _ReferralScreenState extends State<ReferralScreen> {
++  final GlobalKey _globalKey = GlobalKey();
++  bool _isSharing = false;
++
++  @override
++  void initState() {
++    super.initState();
++    WidgetsBinding.instance.addPostFrameCallback((_) {
++      // Add a slight delay to ensure the UI is fully painted
++      Future.delayed(const Duration(milliseconds: 500), _saveSlipAutomatically);
++    });
++  }
++
++  Future<void> _saveSlipAutomatically() async {
++    try {
++      final boundary = _globalKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
++      if (boundary == null) return;
++
++      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
++      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
++      if (byteData == null) return;
++      
++      final Uint8List pngBytes = byteData.buffer.asUint8List();
++      final pdf = pw.Document();
++      final pdfImage = pw.MemoryImage(pngBytes);
++      
++      pdf.addPage(
++        pw.Page(
++          pageFormat: PdfPageFormat.a4,
++          margin: const pw.EdgeInsets.all(20),
++          build: (pw.Context context) {
++            return pw.Center(
++              child: pw.Image(pdfImage, fit: pw.BoxFit.contain),
++            );
++          },
++        ),
++      );
++
++      final output = await getApplicationDocumentsDirectory();
++      final session = context.read<TriageProvider>().currentSession;
++      if (session == null) return;
++
++      final filePath = "${output.path}/slip_${session.sessionCode}.pdf";
++      final file = File(filePath);
++      await file.writeAsBytes(await pdf.save());
++
++      // Update Database with slip path
++      final updatedSession = session.copyWith(slipFilePath: filePath);
++      context.read<TriageProvider>().updateSession(updatedSession); // Or update via DB directly
++      await DatabaseService.instance.updateSession(updatedSession);
++      debugPrint('[ReferralScreen] Auto-saved slip to $filePath');
++    } catch (e) {
++      debugPrint('[ReferralScreen] Failed to auto-save slip: $e');
++    }
++  }
++
++  String _generateSummaryText() {
++    final provider = context.read<TriageProvider>();
++    final session = provider.currentSession;
++    final result = provider.currentResult;
++    final now = DateTime.now();
++    
++    String symptoms = 'None';
++    if (result != null && result.matchedSymptoms.isNotEmpty) {
++      symptoms = result.matchedSymptoms.join(', ');
++    }
++
++    return '''ASHA Referral Slip
++Session: ${session?.sessionCode ?? '--'}
++Worker: ${session?.ashaWorkerName ?? '--'}
++Age Group: ${session?.patientAgeGroup?.labelHi ?? '--'}
++Duration: ${session?.symptomDuration?.labelHi ?? '--'}
++Symptoms: $symptoms
++Status: ${result?.categoryLabel ?? 'गंभीर (Red)'}
++Date: ${now.day}/${now.month}/${now.year}
++Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}
++''';
++  }
++
++  void _showQrSummary() {
++    final summaryText = _generateSummaryText();
++    showDialog(
++      context: context,
++      builder: (context) {
++        return AlertDialog(
++          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
++          title: Text('Offline QR Summary', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textDark)),
++          content: Column(
++            mainAxisSize: MainAxisSize.min,
++            children: [
++              Text('Ask patient to scan this QR code to instantly receive their report summary offline.', textAlign: TextAlign.center, style: GoogleFonts.poppins(fontSize: 13, color: AppTheme.textMedium)),
++              const SizedBox(height: 20),
++              Container(
++                padding: const EdgeInsets.all(12),
++                decoration: BoxDecoration(
++                  color: Colors.white,
++                  borderRadius: BorderRadius.circular(16),
++                  border: Border.all(color: AppTheme.divider, width: 2),
++                ),
++                child: QrImageView(
++                  data: summaryText,
++                  version: QrVersions.auto,
++                  size: 200.0,
++                  backgroundColor: Colors.white,
++                ),
++              ),
++            ],
++          ),
++          actions: [
++            TextButton(
++              onPressed: () => Navigator.pop(context),
++              child: Text('Close', style: GoogleFonts.poppins(color: AppTheme.primary, fontWeight: FontWeight.bold)),
++            ),
++          ],
++        );
++      },
++    );
++  }
++
++
++
++  Future<void> _sharePdf() async {
++    if (_isSharing) return;
++    setState(() {
++      _isSharing = true;
++    });
++
++    try {
++      final boundary = _globalKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
++      if (boundary == null) {
++        throw Exception("Repaint boundary not found");
++      }
++
++      // Capture image with high resolution pixel ratio
++      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
++      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
++      if (byteData == null) {
++        throw Exception("Failed to convert image to bytes");
++      }
++      final Uint8List pngBytes = byteData.buffer.asUint8List();
++
++      // Create PDF
++      final pdf = pw.Document();
++      final pdfImage = pw.MemoryImage(pngBytes);
++      
++      pdf.addPage(
++        pw.Page(
++          pageFormat: PdfPageFormat.a4,
++          margin: const pw.EdgeInsets.all(20),
++          build: (pw.Context context) {
++            return pw.Center(
++              child: pw.Image(pdfImage, fit: pw.BoxFit.contain),
++            );
++          },
++        ),
++      );
++
++      // Save PDF to temp directory
++      final output = await getTemporaryDirectory();
++      final file = File("${output.path}/referral_slip_${DateTime.now().millisecondsSinceEpoch}.pdf");
++      await file.writeAsBytes(await pdf.save());
++
++      // Share PDF using share_plus
++      await Share.shareXFiles(
++        [XFile(file.path)],
++        text: 'ASHA Referral Slip',
++      );
++    } catch (e) {
++      debugPrint("Error sharing PDF: $e");
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(
++            content: Text('शेयर करने में त्रुटि: $e'),
++            backgroundColor: Colors.red,
++          ),
++        );
++      }
++    } finally {
++      if (mounted) {
++        setState(() {
++          _isSharing = false;
++        });
++      }
++    }
++  }
++
+   @override
+   Widget build(BuildContext context) {
+     final provider = context.watch<TriageProvider>();
+@@ -31,27 +230,34 @@ class ReferralScreen extends StatelessWidget {
+           onPressed: () => Navigator.pop(context),
+         ),
+         actions: [
+-          IconButton(
+-            icon: Icon(Icons.share_rounded, color: AppTheme.primary),
+-            onPressed: () async {
+-              /* TODO: Share PDF logic (simplified for now) */
+-              
+-              if (session != null && result != null) {
+-                await FollowupService().createFollowupRecord(
+-                  session.sessionCode,
+-                  session.ashaWorkerName,
+-                  result.category.name,
+-                  DateTime.now().toIso8601String(),
+-                );
+-                
+-                if (context.mounted) {
+-                  ScaffoldMessenger.of(context).showSnackBar(
+-                    const SnackBar(content: Text('Referral recorded for follow-up')),
+-                  );
+-                }
+-              }
+-            },
+-          ),
++          _isSharing
++              ? const Center(
++                  child: Padding(
++                    padding: EdgeInsets.symmetric(horizontal: 16),
++                    child: SizedBox(
++                      width: 20,
++                      height: 20,
++                      child: CircularProgressIndicator(
++                        strokeWidth: 2,
++                        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
++                      ),
++                    ),
++                  ),
++                )
++              : Row(
++                  children: [
++                    IconButton(
++                      icon: Icon(Icons.qr_code_2_rounded, color: AppTheme.primary),
++                      tooltip: 'Show QR Summary (Offline)',
++                      onPressed: _showQrSummary,
++                    ),
++                    IconButton(
++                      icon: Icon(Icons.share_rounded, color: AppTheme.primary),
++                      tooltip: 'Share App/PDF',
++                      onPressed: _sharePdf,
++                    ),
++                  ],
++                ),
+         ],
+       ),
+       body: SingleChildScrollView(
+@@ -59,116 +265,119 @@ class ReferralScreen extends StatelessWidget {
+         child: Column(
+           children: [
+             // ── Referral Card ──
+-            Container(
+-              width: double.infinity,
+-              decoration: BoxDecoration(
+-                color: AppTheme.bgWhite,
+-                borderRadius: BorderRadius.circular(20),
+-                boxShadow: AppTheme.cardShadow,
+-                border: Border.all(
+-                    color: AppTheme.triageRed.withOpacity(0.2), width: 1.5),
+-              ),
+-              child: Column(
+-                children: [
+-                  // Red Header
+-                  Container(
+-                    width: double.infinity,
+-                    padding: const EdgeInsets.all(18),
+-                    decoration: BoxDecoration(
+-                      gradient: AppTheme.redGradient,
+-                      borderRadius: const BorderRadius.only(
+-                        topLeft: Radius.circular(18),
+-                        topRight: Radius.circular(18),
++            RepaintBoundary(
++              key: _globalKey,
++              child: Container(
++                width: double.infinity,
++                decoration: BoxDecoration(
++                  color: AppTheme.bgWhite,
++                  borderRadius: BorderRadius.circular(20),
++                  boxShadow: AppTheme.cardShadow,
++                  border: Border.all(
++                      color: AppTheme.triageRed.withOpacity(0.2), width: 1.5),
++                ),
++                child: Column(
++                  children: [
++                    // Red Header
++                    Container(
++                      width: double.infinity,
++                      padding: const EdgeInsets.all(18),
++                      decoration: BoxDecoration(
++                        gradient: AppTheme.redGradient,
++                        borderRadius: const BorderRadius.only(
++                          topLeft: Radius.circular(18),
++                          topRight: Radius.circular(18),
++                        ),
++                      ),
++                      child: Column(
++                        children: [
++                          const Icon(Icons.local_hospital_rounded,
++                              color: Colors.white, size: 36),
++                          const SizedBox(height: 8),
++                          Text('ASHA तत्काल रेफरल',
++                              style: GoogleFonts.poppins(
++                                  color: Colors.white, fontSize: 18,
++                                  fontWeight: FontWeight.w700)),
++                          Text('Urgent Health Referral Slip',
++                              style: GoogleFonts.poppins(
++                                  color: Colors.white70, fontSize: 12)),
++                        ],
+                       ),
+                     ),
+-                    child: Column(
+-                      children: [
+-                        const Icon(Icons.local_hospital_rounded,
+-                            color: Colors.white, size: 36),
+-                        const SizedBox(height: 8),
+-                        Text('ASHA तत्काल रेफरल',
+-                            style: GoogleFonts.poppins(
+-                                color: Colors.white, fontSize: 18,
+-                                fontWeight: FontWeight.w700)),
+-                        Text('Urgent Health Referral Slip',
+-                            style: GoogleFonts.poppins(
+-                                color: Colors.white70, fontSize: 12)),
+-                      ],
+-                    ),
+-                  ),
+ 
+-                  // Info Rows
+-                  Padding(
+-                    padding: const EdgeInsets.all(18),
+-                    child: Column(
+-                      children: [
+-                        _infoRow('रेफरल कोड (Session Code)',
+-                            session?.sessionCode ?? '--'),
+-                        _divider(),
+-                        _infoRow('ASHA कार्यकर्ता',
+-                            session?.ashaWorkerName ?? 'ASHA Worker'),
+-                        _divider(),
+-                        _infoRow('मरीज आयु वर्ग',
+-                            session?.patientAgeGroup?.labelHi ?? '--'),
+-                        _divider(),
+-                        _infoRow('लक्षण अवधि',
+-                            session?.symptomDuration?.labelHi ?? '--'),
+-                        _divider(),
+-                        _infoRow('ट्राइएज स्थिति',
+-                            result?.categoryLabel ?? 'गंभीर (Red)'),
+-                        _divider(),
+-                        _infoRow('दिनांक',
+-                            '${now.day}/${now.month}/${now.year}'),
+-                        _divider(),
+-                        _infoRow('समय',
+-                            '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
+-                        const SizedBox(height: 16),
+-                        Container(
+-                          padding: const EdgeInsets.all(14),
+-                          decoration: BoxDecoration(
+-                            color: AppTheme.triageRed.withOpacity(0.07),
+-                            borderRadius: BorderRadius.circular(12),
+-                            border: Border.all(
+-                                color: AppTheme.triageRed.withOpacity(0.25)),
+-                          ),
+-                          child: Column(
+-                            crossAxisAlignment: CrossAxisAlignment.start,
+-                            children: [
+-                              Text('लक्षण / Symptoms (Confirmed Only):',
+-                                  style: GoogleFonts.poppins(
+-                                      color: AppTheme.triageRed, fontSize: 12,
+-                                      fontWeight: FontWeight.w700)),
+-                              const SizedBox(height: 6),
+-                              Builder(
+-                                builder: (context) {
+-                                  String symptomsText = 'कोई लक्षण नहीं';
+-                                  
+-                                  // The result.matchedSymptoms has the list of confirmed concept hindiLabels (or reasons) from triage engine
+-                                  if (result != null && result.matchedSymptoms.isNotEmpty) {
+-                                    symptomsText = result.matchedSymptoms.join(', ');
+-                                  }
+-                                  
+-                                  return Text(
+-                                    symptomsText,
++                    // Info Rows
++                    Padding(
++                      padding: const EdgeInsets.all(18),
++                      child: Column(
++                        children: [
++                          _infoRow('रेफरल कोड (Session Code)',
++                              session?.sessionCode ?? '--'),
++                          _divider(),
++                          _infoRow('ASHA कार्यकर्ता',
++                              session?.ashaWorkerName ?? 'ASHA Worker'),
++                          _divider(),
++                          _infoRow('मरीज आयु वर्ग',
++                              session?.patientAgeGroup?.labelHi ?? '--'),
++                          _divider(),
++                          _infoRow('लक्षण अवधि',
++                              session?.symptomDuration?.labelHi ?? '--'),
++                          _divider(),
++                          _infoRow('ट्राइएज स्थिति',
++                              result?.categoryLabel ?? 'गंभीर (Red)'),
++                          _divider(),
++                          _infoRow('दिनांक',
++                              '${now.day}/${now.month}/${now.year}'),
++                          _divider(),
++                          _infoRow('समय',
++                              '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
++                          const SizedBox(height: 16),
++                          Container(
++                            padding: const EdgeInsets.all(14),
++                            decoration: BoxDecoration(
++                              color: AppTheme.triageRed.withOpacity(0.07),
++                              borderRadius: BorderRadius.circular(12),
++                              border: Border.all(
++                                  color: AppTheme.triageRed.withOpacity(0.25)),
++                            ),
++                            child: Column(
++                              crossAxisAlignment: CrossAxisAlignment.start,
++                              children: [
++                                Text('लक्षण / Symptoms (Confirmed Only):',
+                                     style: GoogleFonts.poppins(
+-                                        color: AppTheme.textDark, fontSize: 13,
+-                                        height: 1.5),
+-                                  );
+-                                }
+-                              ),
+-                            ],
++                                        color: AppTheme.triageRed, fontSize: 12,
++                                        fontWeight: FontWeight.w700)),
++                                const SizedBox(height: 6),
++                                Builder(
++                                  builder: (context) {
++                                    String symptomsText = 'कोई लक्षण नहीं';
++                                    
++                                    // The result.matchedSymptoms has the list of confirmed concept hindiLabels (or reasons) from triage engine
++                                    if (result != null && result.matchedSymptoms.isNotEmpty) {
++                                      symptomsText = result.matchedSymptoms.join(', ');
++                                    }
++                                    
++                                    return Text(
++                                      symptomsText,
++                                      style: GoogleFonts.poppins(
++                                          color: AppTheme.textDark, fontSize: 13,
++                                          height: 1.5),
++                                    );
++                                  }
++                                ),
++                              ],
++                            ),
+                           ),
+-                        ),
+-                        const SizedBox(height: 16),
+-                        Text('सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
+-                            textAlign: TextAlign.center,
+-                            style: GoogleFonts.poppins(
+-                                color: AppTheme.textMedium, fontSize: 12,
+-                                fontWeight: FontWeight.w600)),
+-                      ],
++                          const SizedBox(height: 16),
++                          Text('सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
++                              textAlign: TextAlign.center,
++                              style: GoogleFonts.poppins(
++                                  color: AppTheme.textMedium, fontSize: 12,
++                                  fontWeight: FontWeight.w600)),
++                        ],
++                      ),
+                     ),
+-                  ),
+-                ],
++                  ],
++                ),
+               ),
+             ),
+ 
+diff --git a/frontend/lib/screens/result_screen.dart b/frontend/lib/screens/result_screen.dart
+index 33a73b8..da0760f 100644
+--- a/frontend/lib/screens/result_screen.dart
++++ b/frontend/lib/screens/result_screen.dart
+@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
+ import 'package:google_fonts/google_fonts.dart';
+ import 'package:provider/provider.dart';
+ import 'package:wakelock_plus/wakelock_plus.dart';
+-import 'package:audioplayers/audioplayers.dart';
+-import '../providers/triage_provider.dart';
++import '../app_theme.dart';
+ import '../models/triage_result.dart';
++import '../providers/triage_provider.dart';
++import '../services/tts_service.dart';
++import '../utils/app_strings.dart';
+ import 'referral_screen.dart';
++import 'session_start_screen.dart';
+ 
+ class ResultScreen extends StatefulWidget {
+   const ResultScreen({super.key});
+@@ -14,161 +17,243 @@ class ResultScreen extends StatefulWidget {
+   State<ResultScreen> createState() => _ResultScreenState();
+ }
+ 
+-class _ResultScreenState extends State<ResultScreen> {
+-  final AudioPlayer _audioPlayer = AudioPlayer();
++class _ResultScreenState extends State<ResultScreen>
++    with SingleTickerProviderStateMixin {
++  late AnimationController _scaleCtrl;
++  late Animation<double> _scaleAnim;
+ 
+   @override
+   void initState() {
+     super.initState();
+     WakelockPlus.enable();
++    
++    _scaleCtrl = AnimationController(vsync: this,
++        duration: const Duration(milliseconds: 600));
++    _scaleAnim = CurvedAnimation(parent: _scaleCtrl, curve: Curves.elasticOut);
++    _scaleCtrl.forward();
+ 
++    // Auto-play TTS
+     WidgetsBinding.instance.addPostFrameCallback((_) {
+-      final result = context.read<TriageProvider>().currentResult;
+-      if (result != null) {
+-        String audioPath = '';
+-        switch (result.category) {
+-          case TriageCategory.red:
+-            audioPath = 'audio/red_hindi.mp3';
+-            break;
+-          case TriageCategory.yellow:
+-            audioPath = 'audio/yellow_hindi.mp3';
+-            break;
+-          case TriageCategory.green:
+-            audioPath = 'audio/green_hindi.mp3';
+-            break;
+-        }
+-        _audioPlayer.play(AssetSource(audioPath));
+-      }
++      final provider = context.read<TriageProvider>();
++      final result = provider.currentResult;
++      final lang = provider.selectedLanguage;
++      if (result != null) TtsService.instance.playTriageResult(result.category, lang);
+     });
+   }
+ 
+   @override
+   void dispose() {
+-    _audioPlayer.dispose();
+     WakelockPlus.disable();
++    _scaleCtrl.dispose();
+     super.dispose();
+   }
+ 
++  Color _categoryColor(TriageCategory cat) {
++    switch (cat) {
++      case TriageCategory.red:    return AppTheme.triageRed;
++      case TriageCategory.yellow: return AppTheme.triageYellow;
++      case TriageCategory.green:  return AppTheme.triageGreen;
++    }
++  }
++
++  Gradient _categoryGradient(TriageCategory cat) {
++    switch (cat) {
++      case TriageCategory.red:    return AppTheme.redGradient;
++      case TriageCategory.yellow: return const LinearGradient(
++          colors: [Color(0xFFFFC107), Color(0xFFFF8F00)]);
++      case TriageCategory.green:  return AppTheme.greenGradient;
++    }
++  }
++
++  IconData _categoryIcon(TriageCategory cat) {
++    switch (cat) {
++      case TriageCategory.red:    return Icons.emergency_rounded;
++      case TriageCategory.yellow: return Icons.warning_amber_rounded;
++      case TriageCategory.green:  return Icons.check_circle_rounded;
++    }
++  }
++
+   @override
+   Widget build(BuildContext context) {
+     final provider = context.watch<TriageProvider>();
+     final result = provider.currentResult;
+-    final concepts = provider.detectedConcepts.where((c) => c.confirmed).toList();
++    if (result == null) return const Scaffold(
++      body: Center(child: CircularProgressIndicator()),
++    );
+ 
+-    if (result == null) {
+-      return const Scaffold(
+-        body: Center(child: CircularProgressIndicator()),
+-      );
+-    }
+-
+-    Color bgColor;
+-    switch (result.category) {
+-      case TriageCategory.red:
+-        bgColor = Colors.red.shade800;
+-        break;
+-      case TriageCategory.yellow:
+-        bgColor = Colors.amber.shade700;
+-        break;
+-      case TriageCategory.green:
+-        bgColor = Colors.green.shade700;
+-        break;
+-    }
++    final cat = result.category;
++    final color = _categoryColor(cat);
++    final gradient = _categoryGradient(cat);
++    final lang = provider.selectedLanguage;
+ 
+     return Scaffold(
+-      backgroundColor: bgColor,
++      backgroundColor: AppTheme.bgPage,
+       body: SafeArea(
+-        child: Padding(
+-          padding: const EdgeInsets.all(32.0),
+-          child: Column(
+-            mainAxisAlignment: MainAxisAlignment.center,
+-            crossAxisAlignment: CrossAxisAlignment.stretch,
+-            children: [
+-              const Spacer(),
+-              
+-              // Level Hindi
+-              Text(
+-                result.levelHindi,
+-                textAlign: TextAlign.center,
+-                style: GoogleFonts.poppins(
+-                  fontSize: 36,
+-                  fontWeight: FontWeight.bold,
+-                  color: Colors.white,
+-                ),
+-              ),
+-              const SizedBox(height: 12),
+-              
+-              // Level Subtitle
+-              Text(
+-                result.levelSubtitle,
+-                textAlign: TextAlign.center,
+-                style: GoogleFonts.poppins(
+-                  fontSize: 18,
+-                  fontWeight: FontWeight.w500,
+-                  color: Colors.white,
+-                ),
+-              ),
+-              
+-              const SizedBox(height: 32),
+-              
+-              // Dividing line
+-              Container(
+-                height: 1,
+-                color: Colors.white.withOpacity(0.3),
+-              ),
+-              
+-              const SizedBox(height: 32),
+-              
+-              // Confirmed Concepts List
+-              if (concepts.isEmpty)
+-                Text(
+-                  'कोई विशेष लक्षण नहीं',
+-                  textAlign: TextAlign.center,
+-                  style: GoogleFonts.poppins(
+-                    fontSize: 14,
+-                    color: Colors.white,
+-                  ),
+-                )
+-              else
+-                ...concepts.map((c) => Padding(
+-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+-                  child: Text(
+-                    '• ${c.hindiLabel}',
+-                    textAlign: TextAlign.center,
+-                    style: GoogleFonts.poppins(
+-                      fontSize: 14,
+-                      color: Colors.white,
++        child: Column(
++          children: [
++            // ── Result Banner ──
++            Container(
++              width: double.infinity,
++              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 22),
++              decoration: BoxDecoration(gradient: gradient),
++              child: Column(
++                children: [
++                  ScaleTransition(
++                    scale: _scaleAnim,
++                    child: Container(
++                      width: 88, height: 88,
++                      decoration: BoxDecoration(
++                        color: Colors.white.withOpacity(0.2),
++                        shape: BoxShape.circle,
++                      ),
++                      child: Icon(_categoryIcon(cat),
++                          color: Colors.white, size: 50),
+                     ),
+                   ),
+-                )),
+-              
+-              const Spacer(),
+-              
+-              // Action Button
+-              ElevatedButton(
+-                style: ElevatedButton.styleFrom(
+-                  backgroundColor: Colors.white,
+-                  foregroundColor: bgColor,
+-                  padding: const EdgeInsets.symmetric(vertical: 20),
+-                  shape: RoundedRectangleBorder(
+-                    borderRadius: BorderRadius.circular(16),
+-                  ),
+-                  elevation: 8,
+-                ),
+-                onPressed: () {
+-                  Navigator.of(context).push(
+-                    MaterialPageRoute(builder: (_) => const ReferralScreen()),
+-                  );
+-                },
+-                child: Text(
+-                  'रेफरल स्लिप बनाएं',
+-                  style: GoogleFonts.poppins(
+-                    fontSize: 22,
+-                    fontWeight: FontWeight.w700,
+-                  ),
++                  const SizedBox(height: 16),
++                  Text(result.categoryLabelForLang(lang),
++                      style: GoogleFonts.poppins(
++                          color: Colors.white, fontSize: 26,
++                          fontWeight: FontWeight.w800)),
++                  const SizedBox(height: 6),
++                  Text(result.getRecommendationForLang(lang),
++                      textAlign: TextAlign.center,
++                      style: GoogleFonts.poppins(
++                          color: Colors.white.withOpacity(0.9), fontSize: 14,
++                          fontWeight: FontWeight.w500, height: 1.5)),
++                ],
++              ),
++            ),
++
++            Expanded(
++              child: SingleChildScrollView(
++                padding: const EdgeInsets.all(22),
++                child: Column(
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  children: [
++                    // ── What Was Said ──
++                    AppTheme.sectionTitle(AppStrings.get('transcription_title', lang)),
++                    const SizedBox(height: 10),
++                    Container(
++                      width: double.infinity,
++                      padding: const EdgeInsets.all(16),
++                      decoration: BoxDecoration(
++                        color: AppTheme.bgWhite,
++                        borderRadius: BorderRadius.circular(16),
++                        boxShadow: AppTheme.cardShadow,
++                      ),
++                      child: Text('"${result.transcribedText}"',
++                          style: GoogleFonts.poppins(
++                              color: AppTheme.textDark, fontSize: 14,
++                              fontStyle: FontStyle.italic, height: 1.5)),
++                    ),
++
++                    const SizedBox(height: 20),
++
++                    // ── Matched Symptoms ──
++                    AppTheme.sectionTitle(AppStrings.get('detected_symptoms', lang)),
++                    const SizedBox(height: 10),
++                    Wrap(
++                      spacing: 8, runSpacing: 8,
++                      children: result.matchedSymptoms.map((s) => Container(
++                        padding: const EdgeInsets.symmetric(
++                            horizontal: 12, vertical: 6),
++                        decoration: BoxDecoration(
++                          color: color.withOpacity(0.1),
++                          borderRadius: BorderRadius.circular(20),
++                          border: Border.all(color: color.withOpacity(0.35)),
++                        ),
++                        child: Text(s, style: GoogleFonts.poppins(
++                            color: color, fontSize: 12,
++                            fontWeight: FontWeight.w600)),
++                      )).toList(),
++                    ),
++
++                    const SizedBox(height: 20),
++
++                    // ── Recommendation Card ──
++                    Container(
++                      width: double.infinity,
++                      padding: const EdgeInsets.all(18),
++                      decoration: BoxDecoration(
++                        color: color.withOpacity(0.08),
++                        borderRadius: BorderRadius.circular(16),
++                        border: Border.all(color: color.withOpacity(0.25)),
++                      ),
++                      child: Row(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          Icon(Icons.tips_and_updates_rounded,
++                              color: color, size: 24),
++                          const SizedBox(width: 12),
++                          Expanded(
++                            child: Column(
++                              crossAxisAlignment: CrossAxisAlignment.start,
++                              children: [
++                                Text(AppStrings.get('asha_advice', lang),
++                                    style: GoogleFonts.poppins(
++                                        color: color, fontSize: 13,
++                                        fontWeight: FontWeight.w700)),
++                                const SizedBox(height: 4),
++                                Text(result.getRecommendationForLang(lang),
++                                    style: GoogleFonts.poppins(
++                                        color: AppTheme.textDark, fontSize: 13,
++                                        height: 1.5)),
++                              ],
++                            ),
++                          ),
++                        ],
++                      ),
++                    ),
++
++                    const SizedBox(height: 20),
++
++                    // ── TTS Replay ──
++                    OutlinedButton.icon(
++                      onPressed: () =>
++                          TtsService.instance.playTriageResult(cat, lang),
++                      icon: Icon(Icons.volume_up_rounded,
++                          color: AppTheme.primary, size: 20),
++                      label: Text(AppStrings.get('listen_audio', lang),
++                          style: GoogleFonts.poppins(
++                              color: AppTheme.primary, fontSize: 14,
++                              fontWeight: FontWeight.w600)),
++                      style: OutlinedButton.styleFrom(
++                        minimumSize: const Size(double.infinity, 50),
++                        shape: RoundedRectangleBorder(
++                            borderRadius: BorderRadius.circular(14)),
++                      ),
++                    ),
++
++                    const SizedBox(height: 12),
++
++                    if (result.requiresReferral)
++                      AppTheme.gradientButton(
++                        label: AppStrings.get('create_referral_slip', lang),
++                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
++                            builder: (_) => const ReferralScreen())),
++                        gradient: AppTheme.redGradient,
++                        icon: Icons.local_hospital_rounded,
++                      ),
++
++                    const SizedBox(height: 12),
++
++                    AppTheme.gradientButton(
++                      label: AppStrings.get('new_patient', lang),
++                      onTap: () {
++                        context.read<TriageProvider>().reset();
++                        Navigator.of(context).pushAndRemoveUntil(
++                          MaterialPageRoute(
++                              builder: (_) => const SessionStartScreen()),
++                          (route) => false,
++                        );
++                      },
++                    ),
++                  ],
+                 ),
+               ),
+-            ],
+-          ),
++            ),
++          ],
+         ),
+       ),
+     );
+diff --git a/frontend/lib/screens/session_start_screen.dart b/frontend/lib/screens/session_start_screen.dart
+index 837e7f6..25d9e5f 100644
+--- a/frontend/lib/screens/session_start_screen.dart
++++ b/frontend/lib/screens/session_start_screen.dart
+@@ -6,10 +6,10 @@ import '../app_theme.dart';
+ import '../models/session_model.dart';
+ import '../providers/triage_provider.dart';
+ import '../services/onboarding_service.dart';
++import '../services/database_service.dart';
+ import '../utils/app_strings.dart';
+ import 'voice_screen.dart';
+ import 'profile_screen.dart';
+-import 'language_selection_screen.dart';
+ 
+ class SessionStartScreen extends StatefulWidget {
+   const SessionStartScreen({super.key});
+@@ -27,8 +27,25 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
+   AgeGroup? _selectedAge;
+   SymptomDuration? _selectedDuration;
+ 
++  Map<String, int> _stats = {};
++
+   final String workerName = OnboardingService.instance.workerName;
+ 
++  @override
++  void initState() {
++    super.initState();
++    _loadStats();
++  }
++
++  Future<void> _loadStats() async {
++    final stats = await DatabaseService.instance.getWorkerStats();
++    if (mounted) {
++      setState(() {
++        _stats = stats;
++      });
++    }
++  }
++
+   @override
+   void dispose() {
+     _nameController.dispose();
+@@ -300,17 +317,28 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
+                     fontSize: 18, fontWeight: FontWeight.w700,
+                     color: AppTheme.textDark)),
+           ),
+-          GestureDetector(
+-            onTap: () => Navigator.of(context).pushReplacement(
+-              MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
++          Container(
++            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
++            decoration: BoxDecoration(
++              color: AppTheme.primary.withOpacity(0.08),
++              borderRadius: BorderRadius.circular(12),
+             ),
+-            child: Container(
+-              width: 38, height: 38,
+-              decoration: BoxDecoration(
+-                color: AppTheme.primary.withOpacity(0.1),
+-                shape: BoxShape.circle,
+-              ),
+-              child: Icon(Icons.translate_rounded, color: AppTheme.primary, size: 20),
++            child: DropdownButton<String>(
++              value: lang,
++              underline: const SizedBox(),
++              icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 18),
++              style: GoogleFonts.poppins(
++                  color: AppTheme.primary, fontSize: 13, fontWeight: FontWeight.w600),
++              items: const [
++                DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
++                DropdownMenuItem(value: 'mr', child: Text('मराठी')),
++                DropdownMenuItem(value: 'en', child: Text('English')),
++              ],
++              onChanged: (val) {
++                if (val != null) {
++                  context.read<TriageProvider>().setLanguage(val);
++                }
++              },
+             ),
+           ),
+           const SizedBox(width: 12),
+@@ -430,36 +458,54 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
+   }
+ 
+   Widget _buildStatsRow(String lang) {
++    final today = _stats['today'] ?? 0;
++    final critical = _stats['critical'] ?? 0;
++    final normal = (_stats['total'] ?? 0) - critical;
++
+     return Row(
+       children: [
+-        Expanded(child: _statCard('12', AppStrings.get('today_patients', lang), Icons.people_alt_rounded,
+-            const Color(0xFF6C63FF))),
++        Expanded(child: _statCard('$today', AppStrings.get('today_patients', lang), Icons.people_alt_rounded,
++            const Color(0xFF6C63FF), AppTheme.primaryGradient)),
+         const SizedBox(width: 12),
+-        Expanded(child: _statCard('3', AppStrings.get('critical_cases', lang), Icons.warning_amber_rounded,
+-            AppTheme.triageRed)),
++        Expanded(child: _statCard('$critical', AppStrings.get('critical_cases', lang), Icons.warning_amber_rounded,
++            AppTheme.triageRed, AppTheme.redGradient)),
+         const SizedBox(width: 12),
+-        Expanded(child: _statCard('9', AppStrings.get('normal_cases', lang), Icons.check_circle_outline_rounded,
+-            AppTheme.triageGreen)),
++        Expanded(child: _statCard('$normal', AppStrings.get('normal_cases', lang), Icons.check_circle_outline_rounded,
++            AppTheme.triageGreen, AppTheme.greenGradient)),
+       ],
+     );
+   }
+ 
+-  Widget _statCard(String num, String label, IconData icon, Color color) {
++  Widget _statCard(String num, String label, IconData icon, Color color, Gradient gradient) {
+     return Container(
+-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
++      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+       decoration: BoxDecoration(
+         color: AppTheme.bgWhite,
+-        borderRadius: BorderRadius.circular(16),
+-        boxShadow: AppTheme.cardShadow,
++        borderRadius: BorderRadius.circular(20),
++        boxShadow: [
++          BoxShadow(
++            color: color.withOpacity(0.15),
++            blurRadius: 15,
++            offset: const Offset(0, 6),
++          )
++        ],
++        border: Border.all(color: color.withOpacity(0.1), width: 1.5),
+       ),
+       child: Column(
+         children: [
+-          Icon(icon, color: color, size: 22),
+-          const SizedBox(height: 6),
++          Container(
++            padding: const EdgeInsets.all(8),
++            decoration: BoxDecoration(
++              gradient: gradient,
++              shape: BoxShape.circle,
++            ),
++            child: Icon(icon, color: Colors.white, size: 20),
++          ),
++          const SizedBox(height: 10),
+           Text(num, style: GoogleFonts.poppins(
+-              color: color, fontSize: 20, fontWeight: FontWeight.w700)),
++              color: color, fontSize: 24, fontWeight: FontWeight.w800)),
+           Text(label, style: GoogleFonts.poppins(
+-              color: AppTheme.textLight, fontSize: 10, fontWeight: FontWeight.w500),
++              color: AppTheme.textMedium, fontSize: 11, fontWeight: FontWeight.w600),
+               textAlign: TextAlign.center),
+         ],
+       ),
+diff --git a/frontend/lib/screens/transcription_screen.dart b/frontend/lib/screens/transcription_screen.dart
+index e48945a..ca3fe8a 100644
+--- a/frontend/lib/screens/transcription_screen.dart
++++ b/frontend/lib/screens/transcription_screen.dart
+@@ -6,18 +6,11 @@ import '../providers/triage_provider.dart';
+ import '../utils/app_strings.dart';
+ import 'confirmation_screen.dart';
+ import 'voice_screen.dart';
+-import 'result_screen.dart';
++import 'profile_screen.dart';
+ 
+-class TranscriptionScreen extends StatefulWidget {
++class TranscriptionScreen extends StatelessWidget {
+   const TranscriptionScreen({super.key});
+ 
+-  @override
+-  State<TranscriptionScreen> createState() => _TranscriptionScreenState();
+-}
+-
+-class _TranscriptionScreenState extends State<TranscriptionScreen> {
+-  bool _wasAnalyzing = false;
+-
+   @override
+   Widget build(BuildContext context) {
+     final provider = context.watch<TriageProvider>();
+@@ -26,11 +19,9 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
+ 
+     return Scaffold(
+       backgroundColor: AppTheme.bgPage,
+-      body: Stack(
+-        children: [
+-          SafeArea(
+-            child: Column(
+-              children: [
++      body: SafeArea(
++        child: Column(
++          children: [
+             // ── Header ──
+             Container(
+               color: AppTheme.bgWhite,
+@@ -43,13 +34,18 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
+                       style: GoogleFonts.poppins(
+                           fontSize: 18, fontWeight: FontWeight.w700,
+                           color: AppTheme.textDark))),
+-                  Container(
+-                    width: 38, height: 38,
+-                    decoration: BoxDecoration(
+-                        gradient: AppTheme.primaryGradient,
+-                        shape: BoxShape.circle),
+-                    child: const Icon(Icons.person_rounded,
+-                        color: Colors.white, size: 20),
++                  GestureDetector(
++                    onTap: () => Navigator.of(context).push(
++                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
++                    ),
++                    child: Container(
++                      width: 38, height: 38,
++                      decoration: BoxDecoration(
++                          gradient: AppTheme.primaryGradient,
++                          shape: BoxShape.circle),
++                      child: const Icon(Icons.person_rounded,
++                          color: Colors.white, size: 20),
++                    ),
+                   ),
+                 ],
+               ),
+@@ -215,8 +211,13 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
+                         const SizedBox(width: 12),
+                         Expanded(
+                           child: ElevatedButton.icon(
+-                            onPressed: () {
+-                              context.read<TriageProvider>().setTranscript(text);
++                            onPressed: () async {
++                              await provider.analyzeTranscription();
++                              if (!context.mounted) return;
++                              Navigator.of(context).push(
++                                MaterialPageRoute(
++                                    builder: (_) => const ConfirmationScreen()),
++                              );
+                             },
+                             icon: const Icon(Icons.check_rounded, size: 18),
+                             label: Text(AppStrings.get('correct_continue', lang),
+@@ -238,45 +239,6 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
+           ],
+         ),
+       ),
+-      Consumer<TriageProvider>(
+-        builder: (context, provider, child) {
+-          if (provider.isAnalyzing) {
+-            _wasAnalyzing = true;
+-            return Container(
+-              color: Colors.black87,
+-              child: Center(
+-                child: Column(
+-                  mainAxisSize: MainAxisSize.min,
+-                  children: [
+-                    const CircularProgressIndicator(color: AppTheme.primary),
+-                    const SizedBox(height: 20),
+-                    Text('विश्लेषण हो रहा है',
+-                        style: GoogleFonts.poppins(
+-                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+-                  ],
+-                ),
+-              ),
+-            );
+-          } else if (_wasAnalyzing) {
+-            _wasAnalyzing = false;
+-            WidgetsBinding.instance.addPostFrameCallback((_) async {
+-              if (provider.detectedConcepts.isEmpty) {
+-                await provider.scoreAndNavigate();
+-                if (mounted) {
+-                  Navigator.of(context).push(
+-                      MaterialPageRoute(builder: (_) => const ResultScreen()));
+-                }
+-              } else {
+-                Navigator.of(context).push(
+-                    MaterialPageRoute(builder: (_) => const ConfirmationScreen()));
+-              }
+-            });
+-          }
+-          return const SizedBox.shrink();
+-        },
+-      ),
+-      ],
+-      ),
+     );
+   }
+ 
+diff --git a/frontend/lib/screens/voice_screen.dart b/frontend/lib/screens/voice_screen.dart
+index c12b1df..56e05f4 100644
+--- a/frontend/lib/screens/voice_screen.dart
++++ b/frontend/lib/screens/voice_screen.dart
+@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
+ import 'package:google_fonts/google_fonts.dart';
+ import 'package:provider/provider.dart';
+ import 'dart:async';
++import 'dart:math' as Math;
+ import '../app_theme.dart';
+ import '../providers/triage_provider.dart';
+ import '../services/stt_service.dart';
+ import '../utils/app_strings.dart';
+ import 'transcription_screen.dart';
+-import 'symptom_text_input_screen.dart';
+ 
+ class VoiceScreen extends StatefulWidget {
+   const VoiceScreen({super.key});
+@@ -24,151 +24,81 @@ class _VoiceScreenState extends State<VoiceScreen>
+ 
+   String _liveText = '';
+   bool _isRecording = false;
+-  String _errorMessage = '';
+   StreamSubscription<String>? _sttSub;
+ 
+   @override
+   void initState() {
+     super.initState();
+     _pulseCtrl = AnimationController(
+-        vsync: this, duration: const Duration(milliseconds: 1200))
+-      ..repeat(reverse: true);
++      vsync: this,
++      duration: const Duration(milliseconds: 1200),
++    )..repeat(reverse: true);
+     _waveCtrl = AnimationController(
+-        vsync: this, duration: const Duration(milliseconds: 2000))
+-      ..repeat();
+-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.18)
+-        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+-
+-    WidgetsBinding.instance.addPostFrameCallback((_) {
+-      if (context.read<TriageProvider>().transcribedText.isNotEmpty) {
+-        setState(() {
+-          _liveText = context.read<TriageProvider>().transcribedText;
+-        });
+-      }
+-    });
+-
+-    SttService.instance.isListeningNotifier
+-        .addListener(_onListeningStateChanged);
+-  }
+-
+-  void _onListeningStateChanged() {
+-    final isListening = SttService.instance.isListeningNotifier.value;
+-    if (mounted && _isRecording != isListening) {
+-      setState(() => _isRecording = isListening);
+-      context.read<TriageProvider>().setRecording(_isRecording);
+-      if (!isListening && _liveText.isNotEmpty) {
+-        context.read<TriageProvider>().updateTranscription(_liveText);
+-      }
+-    }
++      vsync: this,
++      duration: const Duration(milliseconds: 2000),
++    )..repeat();
++    _pulseAnim = Tween<double>(begin: 1.0, end: 1.18).animate(
++      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
++    );
+   }
+ 
+   @override
+   void dispose() {
+-    SttService.instance.isListeningNotifier
+-        .removeListener(_onListeningStateChanged);
+     _pulseCtrl.dispose();
+     _waveCtrl.dispose();
+     _sttSub?.cancel();
+     super.dispose();
+   }
+ 
+-  // ── Open dedicated typing screen ─────────────────────────────────────────
+-
+-  Future<void> _openTypingScreen() async {
+-    final lang = context.read<TriageProvider>().selectedLanguage;
+-
+-    // Push the dedicated text input screen; it returns the typed text on pop
+-    final result = await Navigator.of(context).push<String>(
+-      MaterialPageRoute(
+-        builder: (_) => SymptomTextInputScreen(
+-          language: lang,
+-          initialText: _liveText,  // pre-fill with any spoken text
+-        ),
+-      ),
+-    );
+-
+-    // If user confirmed text, treat it as the transcript and proceed
+-    if (result != null && result.isNotEmpty && mounted) {
+-      setState(() => _liveText = result);
+-      context.read<TriageProvider>().updateTranscription(result);
+-      if (mounted) {
+-        Navigator.of(context).push(
+-            MaterialPageRoute(builder: (_) => const TranscriptionScreen()));
+-      }
+-    }
+-  }
+-
+-  // ── Voice recording ─────────────────────────────────────────────────────
+-
+   void _toggleRecording() {
+     final lang = context.read<TriageProvider>().selectedLanguage;
+     final localeMap = {'hi': 'hi-IN', 'mr': 'mr-IN', 'en': 'en-IN'};
+     final sttLocale = localeMap[lang] ?? 'hi-IN';
+ 
+-    if (!_isRecording) {
+-      setState(() {
+-        _isRecording = true;
+-        _errorMessage = '';
+-      });
+-      context.read<TriageProvider>().setRecording(true);
++    setState(() => _isRecording = !_isRecording);
++    context.read<TriageProvider>().setRecording(_isRecording);
+ 
++    if (_isRecording) {
+       _liveText = '';
+       _sttSub?.cancel();
+       _sttSub = SttService.instance.transcriptStream.listen((text) {
+         setState(() => _liveText = text);
+       });
+-      SttService.instance.startListening(
+-        locale: sttLocale,
+-        onError: (msg) {
+-          if (mounted) setState(() => _errorMessage = msg);
+-        },
+-        onLocaleResolved: (activeLocale) {
+-          debugPrint('[VoiceScreen] Active STT locale: $activeLocale');
+-          if (activeLocale == 'hi_IN' && sttLocale == 'mr_IN') {
+-            context.read<TriageProvider>().setLanguage('hi');
+-          }
+-        },
+-      );
++      SttService.instance.startListening(locale: sttLocale);
+     } else {
++      _sttSub?.cancel();
+       SttService.instance.stopListening();
+-      if (_liveText.isNotEmpty) {
+-        context.read<TriageProvider>().updateTranscription(_liveText);
+-      }
+     }
+   }
+ 
+   void _proceed() {
+     if (_liveText.isEmpty) return;
+     context.read<TriageProvider>().updateTranscription(_liveText);
+-    Navigator.of(context)
+-        .push(MaterialPageRoute(builder: (_) => const TranscriptionScreen()));
++    Navigator.of(context).push(
++      MaterialPageRoute(builder: (_) => const TranscriptionScreen()),
++    );
+   }
+ 
+   void _retry() {
+     setState(() {
+       _liveText = '';
+       _isRecording = false;
+-      _errorMessage = '';
+     });
+     _sttSub?.cancel();
+     SttService.instance.stopListening();
+   }
+ 
+-  // ── Build ────────────────────────────────────────────────────────────────
+-
+   @override
+   Widget build(BuildContext context) {
+     final lang = context.watch<TriageProvider>().selectedLanguage;
+-
+     return Scaffold(
+-      backgroundColor: const Color(0xFF0D0D1A),
++      backgroundColor: const Color(0xFFF8FAFC), // glare-reducing light background
+       body: SafeArea(
+         child: Column(
+           children: [
+-            // ── App Bar ──
++            // ── Header ──
+             Padding(
+-              padding: const EdgeInsets.symmetric(
+-                  horizontal: 20, vertical: 16),
++              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+               child: Row(
+                 children: [
+                   GestureDetector(
+@@ -177,190 +107,224 @@ class _VoiceScreenState extends State<VoiceScreen>
+                       width: 40,
+                       height: 40,
+                       decoration: BoxDecoration(
+-                        color: Colors.white.withOpacity(0.08),
++                        color: AppTheme.primary.withOpacity(0.08),
+                         borderRadius: BorderRadius.circular(12),
+                       ),
+                       child: const Icon(Icons.arrow_back_ios_new_rounded,
+-                          color: Colors.white, size: 18),
++                          color: AppTheme.primary, size: 18),
+                     ),
+                   ),
+                   const SizedBox(width: 16),
+-                  Text(
+-                    AppStrings.get('voice_screen_title', lang),
+-                    style: GoogleFonts.poppins(
+-                        color: Colors.white,
++                  Expanded(
++                    child: Text(
++                      AppStrings.get('voice_screen_title', lang),
++                      style: GoogleFonts.poppins(
++                        color: AppTheme.textDark,
+                         fontSize: 18,
+-                        fontWeight: FontWeight.w700),
++                        fontWeight: FontWeight.w700,
++                      ),
++                    ),
++                  ),
++                  // Top dashboard language toggle
++                  Container(
++                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
++                    decoration: BoxDecoration(
++                      color: AppTheme.primary.withOpacity(0.08),
++                      borderRadius: BorderRadius.circular(12),
++                    ),
++                    child: DropdownButton<String>(
++                      value: lang,
++                      underline: const SizedBox(),
++                      icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 16),
++                      style: GoogleFonts.poppins(
++                          color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600),
++                      items: const [
++                        DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
++                        DropdownMenuItem(value: 'mr', child: Text('मराठी')),
++                        DropdownMenuItem(value: 'en', child: Text('English')),
++                      ],
++                      onChanged: (val) {
++                        if (val != null) {
++                          context.read<TriageProvider>().setLanguage(val);
++                        }
++                      },
++                    ),
+                   ),
+                 ],
+               ),
+             ),
+ 
+-            // ── Voice / Type Toggle ──
+-            Padding(
+-              padding: const EdgeInsets.symmetric(horizontal: 20),
+-              child: Container(
+-                height: 44,
+-                decoration: BoxDecoration(
+-                  color: Colors.white.withOpacity(0.07),
+-                  borderRadius: BorderRadius.circular(12),
+-                ),
+-                child: Row(
+-                  children: [
+-                    _modeTab(
+-                      icon: Icons.mic_rounded,
+-                      label: lang == 'en' ? 'Voice' : 'आवाज़',
+-                      active: true,
+-                      onTap: () {},   // already on voice mode
++            // ── Center Focus Section ──
++            Expanded(
++              child: Column(
++                mainAxisAlignment: MainAxisAlignment.center,
++                children: [
++                  // Prominent circular white mic button in subtle glow container
++                  GestureDetector(
++                    onTap: _toggleRecording,
++                    child: AnimatedBuilder(
++                      animation: _pulseCtrl,
++                      builder: (_, child) {
++                        return Stack(
++                          alignment: Alignment.center,
++                          children: [
++                            // Soft, subtle glow container
++                            Container(
++                              width: 140 * (_isRecording ? _pulseAnim.value : 1.0),
++                              height: 140 * (_isRecording ? _pulseAnim.value : 1.0),
++                              decoration: BoxDecoration(
++                                shape: BoxShape.circle,
++                                color: AppTheme.primary.withOpacity(0.06),
++                              ),
++                            ),
++                            Container(
++                              width: 116 * (_isRecording ? _pulseAnim.value : 1.0),
++                              height: 116 * (_isRecording ? _pulseAnim.value : 1.0),
++                              decoration: BoxDecoration(
++                                shape: BoxShape.circle,
++                                color: AppTheme.primary.withOpacity(0.09),
++                              ),
++                            ),
++                            // Circular white microphone action button (minimum 96x96 px)
++                            Container(
++                              width: 96,
++                              height: 96,
++                              decoration: BoxDecoration(
++                                color: Colors.white,
++                                shape: BoxShape.circle,
++                                boxShadow: [
++                                  BoxShadow(
++                                    color: AppTheme.primary.withOpacity(0.12),
++                                    blurRadius: 15,
++                                    spreadRadius: 2,
++                                  ),
++                                  if (_isRecording)
++                                    BoxShadow(
++                                      color: AppTheme.primary.withOpacity(0.24),
++                                      blurRadius: 25,
++                                      spreadRadius: 3,
++                                    ),
++                                ],
++                              ),
++                              child: Icon(
++                                _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
++                                color: AppTheme.primary,
++                                size: 40,
++                              ),
++                            ),
++                          ],
++                        );
++                      },
+                     ),
+-                    _modeTab(
+-                      icon: Icons.keyboard_alt_rounded,
+-                      label: lang == 'en'
+-                          ? 'Type'
+-                          : (lang == 'mr' ? 'टाइप करा' : 'टाइप करें'),
+-                      active: false,
+-                      onTap: _openTypingScreen, // ← opens dedicated screen
++                  ),
++
++                  const SizedBox(height: 32),
++
++                  // Headline instructions: "बोलिए / Talk / सांगा" (at least 24sp)
++                  Text(
++                    "बोलिए / Talk / सांगा",
++                    style: GoogleFonts.poppins(
++                      color: AppTheme.textDark,
++                      fontSize: 26,
++                      fontWeight: FontWeight.w800,
++                      letterSpacing: 0.5,
+                     ),
+-                  ],
+-                ),
+-              ),
+-            ),
++                    textAlign: TextAlign.center,
++                  ),
++                  const SizedBox(height: 6),
++                  Text(
++                    _isRecording
++                        ? AppStrings.get('listening', lang)
++                        : AppStrings.get('press_mic', lang),
++                    style: GoogleFonts.poppins(
++                      color: _isRecording ? AppTheme.primary : AppTheme.textLight,
++                      fontSize: 14,
++                      fontWeight: FontWeight.w600,
++                    ),
++                  ),
+ 
+-            const SizedBox(height: 16),
++                  const SizedBox(height: 24),
+ 
+-            // ── Voice mode content ──
+-            Expanded(child: _buildVoiceMode(lang)),
++                  // Dynamic multi-colored Bezier audio visualization curve
++                  Container(
++                    width: double.infinity,
++                    height: 80,
++                    padding: const EdgeInsets.symmetric(horizontal: 24),
++                    child: AnimatedBuilder(
++                      animation: _waveCtrl,
++                      builder: (context, child) {
++                        return CustomPaint(
++                          painter: WaveformPainter(
++                            animationValue: _waveCtrl.value,
++                            isRecording: _isRecording,
++                          ),
++                        );
++                      },
++                    ),
++                  ),
++                ],
++              ),
++            ),
+ 
+-            // ── Live Transcription Panel ──
++            // ── Transcription Box ──
+             Container(
+               margin: const EdgeInsets.symmetric(horizontal: 20),
+-              padding: const EdgeInsets.all(18),
++              padding: const EdgeInsets.all(20),
+               decoration: BoxDecoration(
+-                color: Colors.white.withOpacity(0.06),
+-                borderRadius: BorderRadius.circular(20),
+-                border: Border.all(color: Colors.white.withOpacity(0.08)),
++                color: Colors.white,
++                borderRadius: BorderRadius.circular(24),
++                boxShadow: AppTheme.cardShadow,
++                border: Border.all(
++                  color: AppTheme.primary.withOpacity(0.08),
++                  width: 1.5,
++                ),
+               ),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   Row(
+                     children: [
+-                      Icon(Icons.graphic_eq_rounded,
+-                          color: AppTheme.primaryLight, size: 16),
+-                      const SizedBox(width: 6),
++                      Icon(
++                        Icons.graphic_eq_rounded,
++                        color: AppTheme.primary,
++                        size: 18,
++                      ),
++                      const SizedBox(width: 8),
+                       Text(
+                         AppStrings.get('live_transcription', lang),
+                         style: GoogleFonts.poppins(
+-                            color: AppTheme.primaryLight,
+-                            fontSize: 12,
+-                            fontWeight: FontWeight.w600),
++                          color: AppTheme.primary,
++                          fontSize: 13,
++                          fontWeight: FontWeight.w700,
++                        ),
+                       ),
+                     ],
+                   ),
+-                  const SizedBox(height: 10),
++                  const SizedBox(height: 12),
+                   Container(
+                     width: double.infinity,
+-                    constraints: const BoxConstraints(minHeight: 60),
++                    constraints: const BoxConstraints(minHeight: 70),
+                     child: _liveText.isEmpty
+                         ? Text(
+-                            AppStrings.get('words_placeholder', lang),
++                            "पांच साल का बच्चा, दो दिन से तेज बुखार...",
+                             style: GoogleFonts.poppins(
+-                                color: Colors.white24,
+-                                fontSize: 14,
+-                                fontStyle: FontStyle.italic))
++                              color: AppTheme.textLight.withOpacity(0.6),
++                              fontSize: 16,
++                              fontStyle: FontStyle.italic,
++                              height: 1.5,
++                            ),
++                          )
+                         : RichText(
+                             text: TextSpan(
+-                                children:
+-                                    _buildHighlightedText(_liveText))),
+-                  ),
+-                ],
+-              ),
+-            ),
+-
+-            const SizedBox(height: 16),
+-
+-            // ── Error Banner ──
+-            if (_errorMessage.isNotEmpty)
+-              Padding(
+-                padding: const EdgeInsets.symmetric(horizontal: 20),
+-                child: Container(
+-                  width: double.infinity,
+-                  padding: const EdgeInsets.symmetric(
+-                      horizontal: 16, vertical: 12),
+-                  decoration: BoxDecoration(
+-                    color: const Color(0xFFB71C1C).withOpacity(0.15),
+-                    borderRadius: BorderRadius.circular(14),
+-                    border: Border.all(
+-                        color: const Color(0xFFEF5350), width: 1),
+-                  ),
+-                  child: Row(
+-                    crossAxisAlignment: CrossAxisAlignment.start,
+-                    children: [
+-                      const Icon(Icons.warning_amber_rounded,
+-                          color: Color(0xFFEF5350), size: 20),
+-                      const SizedBox(width: 10),
+-                      Expanded(
+-                        child: Column(
+-                          crossAxisAlignment: CrossAxisAlignment.start,
+-                          children: [
+-                            Text(
+-                              _errorMessage,
+-                              style: GoogleFonts.poppins(
+-                                color: const Color(0xFFEF9A9A),
+-                                fontSize: 12,
+-                                fontWeight: FontWeight.w500,
+-                                height: 1.4,
+-                              ),
+-                            ),
+-                            const SizedBox(height: 4),
+-                            GestureDetector(
+-                              onTap: _openTypingScreen,
+-                              child: Text(
+-                                lang == 'en'
+-                                    ? '→ Type symptoms instead'
+-                                    : lang == 'mr'
+-                                        ? '→ टाइप करून लक्षणे सांगा'
+-                                        : '→ टाइप करके लक्षण बताएं',
+-                                style: GoogleFonts.poppins(
+-                                  color: const Color(0xFF90CAF9),
+-                                  fontSize: 12,
+-                                  fontWeight: FontWeight.w600,
+-                                  decoration: TextDecoration.underline,
+-                                  decorationColor:
+-                                      const Color(0xFF90CAF9),
+-                                ),
+-                              ),
+-                            ),
+-                          ],
+-                        ),
+-                      ),
+-                      const SizedBox(width: 8),
+-                      GestureDetector(
+-                        onTap: () =>
+-                            SttService.instance.openLanguageSettings(),
+-                        child: Container(
+-                          padding: const EdgeInsets.symmetric(
+-                              horizontal: 10, vertical: 6),
+-                          decoration: BoxDecoration(
+-                            color: const Color(0xFFEF5350),
+-                            borderRadius: BorderRadius.circular(8),
+-                          ),
+-                          child: Text(
+-                            'Fix',
+-                            style: GoogleFonts.poppins(
+-                              color: Colors.white,
+-                              fontSize: 12,
+-                              fontWeight: FontWeight.w700,
++                              children: _buildHighlightedText(_liveText),
+                             ),
+                           ),
+-                        ),
+-                      ),
+-                    ],
+                   ),
+-                ),
++                ],
+               ),
++            ),
+ 
+-            const SizedBox(height: 12),
++            const SizedBox(height: 24),
+ 
+             // ── Action Buttons ──
+             Padding(
+@@ -374,15 +338,20 @@ class _VoiceScreenState extends State<VoiceScreen>
+                       label: Text(
+                         AppStrings.get('rerecord', lang),
+                         style: GoogleFonts.poppins(
+-                            fontSize: 14, fontWeight: FontWeight.w600),
++                          fontSize: 14,
++                          fontWeight: FontWeight.w600,
++                        ),
+                       ),
+                       style: OutlinedButton.styleFrom(
+-                        foregroundColor: Colors.white70,
++                        foregroundColor: AppTheme.textMedium,
+                         side: BorderSide(
+-                            color: Colors.white.withOpacity(0.2)),
+-                        padding: const EdgeInsets.symmetric(vertical: 14),
++                          color: AppTheme.borderColor,
++                          width: 1.5,
++                        ),
++                        padding: const EdgeInsets.symmetric(vertical: 16),
+                         shape: RoundedRectangleBorder(
+-                            borderRadius: BorderRadius.circular(14)),
++                          borderRadius: BorderRadius.circular(16),
++                        ),
+                       ),
+                     ),
+                   ),
+@@ -390,18 +359,20 @@ class _VoiceScreenState extends State<VoiceScreen>
+                   Expanded(
+                     child: ElevatedButton.icon(
+                       onPressed: _liveText.isNotEmpty ? _proceed : null,
+-                      icon: const Icon(Icons.arrow_forward_rounded,
+-                          size: 18),
++                      icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                       label: Text(
+                         AppStrings.get('continue_btn', lang),
+                         style: GoogleFonts.poppins(
+-                            fontSize: 14, fontWeight: FontWeight.w600),
++                          fontSize: 14,
++                          fontWeight: FontWeight.w600,
++                        ),
+                       ),
+                       style: ElevatedButton.styleFrom(
+                         backgroundColor: AppTheme.primary,
+-                        padding: const EdgeInsets.symmetric(vertical: 14),
++                        padding: const EdgeInsets.symmetric(vertical: 16),
+                         shape: RoundedRectangleBorder(
+-                            borderRadius: BorderRadius.circular(14)),
++                          borderRadius: BorderRadius.circular(16),
++                        ),
+                       ),
+                     ),
+                   ),
+@@ -415,146 +386,6 @@ class _VoiceScreenState extends State<VoiceScreen>
+     );
+   }
+ 
+-  // ── Helpers ──────────────────────────────────────────────────────────────
+-
+-  Widget _modeTab({
+-    required IconData icon,
+-    required String label,
+-    required bool active,
+-    required VoidCallback onTap,
+-  }) {
+-    return Expanded(
+-      child: GestureDetector(
+-        onTap: onTap,
+-        child: AnimatedContainer(
+-          duration: const Duration(milliseconds: 200),
+-          margin: const EdgeInsets.all(4),
+-          decoration: BoxDecoration(
+-            color: active ? AppTheme.primary : Colors.transparent,
+-            borderRadius: BorderRadius.circular(9),
+-            boxShadow: active ? AppTheme.buttonShadow : [],
+-          ),
+-          child: Row(
+-            mainAxisAlignment: MainAxisAlignment.center,
+-            children: [
+-              Icon(icon,
+-                  color: active ? Colors.white : Colors.white38,
+-                  size: 16),
+-              const SizedBox(width: 6),
+-              Text(
+-                label,
+-                style: GoogleFonts.poppins(
+-                  color: active ? Colors.white : Colors.white38,
+-                  fontSize: 13,
+-                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+-                ),
+-              ),
+-            ],
+-          ),
+-        ),
+-      ),
+-    );
+-  }
+-
+-  Widget _buildVoiceMode(String lang) {
+-    return Column(
+-      mainAxisAlignment: MainAxisAlignment.center,
+-      children: [
+-        Text(
+-          AppStrings.get('speak_instruction', lang),
+-          style: GoogleFonts.poppins(
+-              color: Colors.white,
+-              fontSize: 28,
+-              fontWeight: FontWeight.w700),
+-        ),
+-        Text(
+-          AppStrings.get('describe_symptoms', lang),
+-          style: GoogleFonts.poppins(
+-              color: Colors.white70,
+-              fontSize: 18,
+-              fontWeight: FontWeight.w400),
+-        ),
+-        const SizedBox(height: 50),
+-
+-        GestureDetector(
+-          onTap: _toggleRecording,
+-          child: AnimatedBuilder(
+-            animation: _pulseCtrl,
+-            builder: (_, child) {
+-              return Stack(
+-                alignment: Alignment.center,
+-                children: [
+-                  if (_isRecording) ...[
+-                    Container(
+-                      width: 160 * _pulseAnim.value,
+-                      height: 160 * _pulseAnim.value,
+-                      decoration: BoxDecoration(
+-                        shape: BoxShape.circle,
+-                        color: AppTheme.primary.withOpacity(0.12),
+-                      ),
+-                    ),
+-                    Container(
+-                      width: 130 * _pulseAnim.value,
+-                      height: 130 * _pulseAnim.value,
+-                      decoration: BoxDecoration(
+-                        shape: BoxShape.circle,
+-                        color: AppTheme.primary.withOpacity(0.18),
+-                      ),
+-                    ),
+-                  ],
+-                  Container(
+-                    width: 100,
+-                    height: 100,
+-                    decoration: BoxDecoration(
+-                      shape: BoxShape.circle,
+-                      gradient: _isRecording
+-                          ? const LinearGradient(colors: [
+-                              Color(0xFF5B4FCF),
+-                              Color(0xFF9B8FFF)
+-                            ])
+-                          : const LinearGradient(colors: [
+-                              Color(0xFF333355),
+-                              Color(0xFF222244)
+-                            ]),
+-                      boxShadow: _isRecording
+-                          ? [
+-                              BoxShadow(
+-                                color: AppTheme.primary.withOpacity(0.5),
+-                                blurRadius: 30,
+-                                spreadRadius: 5,
+-                              ),
+-                            ]
+-                          : [],
+-                    ),
+-                    child: Icon(
+-                        _isRecording
+-                            ? Icons.stop_rounded
+-                            : Icons.mic_rounded,
+-                        color: Colors.white,
+-                        size: 44),
+-                  ),
+-                ],
+-              );
+-            },
+-          ),
+-        ),
+-
+-        const SizedBox(height: 20),
+-        Text(
+-          _isRecording
+-              ? AppStrings.get('listening', lang)
+-              : AppStrings.get('press_mic', lang),
+-          style: GoogleFonts.poppins(
+-              color: _isRecording
+-                  ? AppTheme.primaryLight
+-                  : Colors.white38,
+-              fontSize: 13,
+-              fontWeight: FontWeight.w500),
+-        ),
+-      ],
+-    );
+-  }
+-
+   List<InlineSpan> _buildHighlightedText(String text) {
+     final words = text.split(' ');
+     final urgentWords = ['बुखार', 'दर्द', 'तेज', 'गंभीर', 'सांस', 'बेहोश'];
+@@ -563,11 +394,104 @@ class _VoiceScreenState extends State<VoiceScreen>
+       return TextSpan(
+         text: '$w ',
+         style: GoogleFonts.poppins(
+-          color: isUrgent ? const Color(0xFFFF8A80) : Colors.white,
+-          fontSize: 15,
+-          fontWeight: isUrgent ? FontWeight.w600 : FontWeight.w400,
++          color: isUrgent ? const Color(0xffD32F2F) : AppTheme.textDark,
++          fontSize: 16,
++          fontWeight: isUrgent ? FontWeight.bold : FontWeight.w500,
+         ),
+       );
+     }).toList();
+   }
+ }
++
++// ── Custom Waveform Painter ──
++class WaveformPainter extends CustomPainter {
++  final double animationValue;
++  final bool isRecording;
++
++  WaveformPainter({required this.animationValue, required this.isRecording});
++
++  @override
++  void paint(Canvas canvas, Size size) {
++    final paint1 = Paint()
++      ..shader = LinearGradient(
++        colors: const [
++          Color(0xffD32F2F), // crimson red
++          Color(0xffF9A825), // amber yellow
++          Color(0xff388E3C), // emerald green
++          Color(0xff1565C0), // cobalt blue
++        ],
++        begin: Alignment.centerLeft,
++        end: Alignment.centerRight,
++      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
++      ..style = PaintingStyle.stroke
++      ..strokeWidth = 3.5
++      ..strokeCap = StrokeCap.round;
++
++    final path1 = Path();
++    final width = size.width;
++    final height = size.height;
++    final midY = height / 2;
++
++    path1.moveTo(0, midY);
++
++    if (isRecording) {
++      for (double x = 0; x <= width; x += 1) {
++        final wave1 = Math.sin((x / width * 3 * Math.pi) + animationValue * 2 * Math.pi) * 18;
++        final wave2 = Math.cos((x / width * 5 * Math.pi) - animationValue * 4 * Math.pi) * 8;
++        final envelope = Math.sin(x / width * Math.pi);
++        final y = midY + (wave1 + wave2) * envelope;
++        path1.lineTo(x, y);
++      }
++    } else {
++      for (double x = 0; x <= width; x += 1) {
++        final envelope = Math.sin(x / width * Math.pi);
++        final y = midY + Math.sin((x / width * 2 * Math.pi) + animationValue * 2 * Math.pi) * 2 * envelope;
++        path1.lineTo(x, y);
++      }
++    }
++
++    canvas.drawPath(path1, paint1);
++
++    // Second overlapping wave for visual depth
++    final paint2 = Paint()
++      ..shader = LinearGradient(
++        colors: const [
++          Color(0xff1565C0), // cobalt blue
++          Color(0xff388E3C), // emerald green
++          Color(0xffF9A825), // amber yellow
++          Color(0xffD32F2F), // crimson red
++        ],
++        begin: Alignment.centerLeft,
++        end: Alignment.centerRight,
++      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
++      ..style = PaintingStyle.stroke
++      ..strokeWidth = 1.5
++      ..strokeCap = StrokeCap.round;
++
++    final path2 = Path();
++    path2.moveTo(0, midY);
++
++    if (isRecording) {
++      for (double x = 0; x <= width; x += 1) {
++        final wave1 = Math.cos((x / width * 4 * Math.pi) - animationValue * 2 * Math.pi) * 12;
++        final wave2 = Math.sin((x / width * 6 * Math.pi) + animationValue * 3 * Math.pi) * 6;
++        final envelope = Math.sin(x / width * Math.pi);
++        final y = midY + (wave1 + wave2) * envelope;
++        path2.lineTo(x, y);
++      }
++    } else {
++      for (double x = 0; x <= width; x += 1) {
++        final envelope = Math.sin(x / width * Math.pi);
++        final y = midY + Math.cos((x / width * 2 * Math.pi) - animationValue * 2 * Math.pi) * 1 * envelope;
++        path2.lineTo(x, y);
++      }
++    }
++
++    canvas.drawPath(path2, paint2);
++  }
++
++  @override
++  bool shouldRepaint(covariant WaveformPainter oldDelegate) {
++    return oldDelegate.animationValue != animationValue || oldDelegate.isRecording != isRecording;
++  }
++}
+diff --git a/frontend/lib/services/database_service.dart b/frontend/lib/services/database_service.dart
+index f515ebe..46cf5fa 100644
+--- a/frontend/lib/services/database_service.dart
++++ b/frontend/lib/services/database_service.dart
+@@ -19,7 +19,7 @@ class DatabaseService {
+     final path = join(await getDatabasesPath(), 'asha_triage.db');
+     return await openDatabase(
+       path,
+-      version: 3,
++      version: 4,
+       onUpgrade: (db, oldVersion, newVersion) async {
+         await db.execute('DROP TABLE IF EXISTS sessions');
+         await db.execute('DROP TABLE IF EXISTS triage_results');
+@@ -47,7 +47,8 @@ class DatabaseService {
+         triage_level TEXT,
+         started_at TEXT NOT NULL,
+         is_completed INTEGER DEFAULT 0,
+-        referral_generated INTEGER DEFAULT 0
++        referral_generated INTEGER DEFAULT 0,
++        slip_file_path TEXT
+       )
+     ''');
+     await db.execute('''
+@@ -64,58 +65,6 @@ class DatabaseService {
+         requires_referral INTEGER DEFAULT 0
+       )
+     ''');
+-    await db.execute('''
+-      CREATE TABLE pregnancy_profiles (
+-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+-        profile_code TEXT NOT NULL UNIQUE,
+-        worker_name TEXT NOT NULL,
+-        mother_name TEXT NOT NULL,
+-        edd TEXT,
+-        risk_level TEXT DEFAULT 'LOW',
+-        visit_count INTEGER DEFAULT 0,
+-        last_visit_date TEXT,
+-        is_active INTEGER DEFAULT 1,
+-        created_at TEXT NOT NULL
+-      )
+-    ''');
+-    await db.execute('''
+-      CREATE TABLE pregnancy_visits (
+-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+-        profile_code TEXT NOT NULL,
+-        visit_date TEXT NOT NULL,
+-        gestational_week INTEGER,
+-        triage_session_code TEXT,
+-        danger_signs_present TEXT,
+-        visit_notes TEXT,
+-        referred INTEGER DEFAULT 0
+-      )
+-    ''');
+-    await db.execute('''
+-      CREATE TABLE followup_records (
+-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+-        session_code TEXT NOT NULL UNIQUE,
+-        worker_name TEXT,
+-        triage_level TEXT,
+-        referral_date TEXT,
+-        reached_hospital INTEGER DEFAULT 0,
+-        treatment_received INTEGER DEFAULT 0,
+-        returned_home INTEGER DEFAULT 0,
+-        followup_notes TEXT,
+-        last_updated TEXT
+-      )
+-    ''');
+-    await db.execute('''
+-      CREATE TABLE epidemic_snapshots (
+-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+-        snapshot_date TEXT NOT NULL,
+-        red_count INTEGER DEFAULT 0,
+-        yellow_count INTEGER DEFAULT 0,
+-        green_count INTEGER DEFAULT 0,
+-        alert_triggered INTEGER DEFAULT 0,
+-        dominant_concepts TEXT,
+-        worker_name TEXT
+-      )
+-    ''');
+   }
+ 
+   Future<void> insertSession(SessionModel s) async {
+@@ -123,34 +72,6 @@ class DatabaseService {
+     await db.insert('sessions', s.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+   }
+ 
+-  Future<void> saveSession({
+-    required String id,
+-    required String sessionCode,
+-    required String workerName,
+-    required String patientAgeGroup,
+-    required String symptomDuration,
+-    required String rawTranscription,
+-    required String confirmedConcepts,
+-    required String triageLevel,
+-    required String timestamp,
+-    required int referralGenerated,
+-  }) async {
+-    final db = await database;
+-    await db.insert('sessions', {
+-      'id': id,
+-      'session_code': sessionCode,
+-      'asha_worker_name': workerName,
+-      'patient_age_group': patientAgeGroup,
+-      'symptom_duration': symptomDuration,
+-      'transcribed_text': rawTranscription,
+-      'confirmed_concepts': confirmedConcepts,
+-      'triage_level': triageLevel,
+-      'started_at': timestamp,
+-      'referral_generated': referralGenerated,
+-      'is_completed': 1,
+-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+-  }
+-
+   Future<void> updateSession(SessionModel s) async {
+     final db = await database;
+     await db.update('sessions', s.toMap(), where: 'id = ?', whereArgs: [s.id]);
+@@ -203,174 +124,20 @@ class DatabaseService {
+     };
+   }
+ 
+-  Future<List<SessionModel>> getRecentSessions({int limit = 10, String? workerName}) async {
++  Future<List<SessionModel>> getRecentSessions({int limit = 10}) async {
+     final db = await database;
+-    if (workerName != null) {
+-      final maps = await db.query('sessions',
+-          where: 'asha_worker_name = ?',
+-          whereArgs: [workerName],
+-          orderBy: 'started_at DESC',
+-          limit: limit);
+-      return maps.map((m) => SessionModel.fromMap(m)).toList();
+-    }
+     final maps = await db.query('sessions', orderBy: 'started_at DESC', limit: limit);
+     return maps.map((m) => SessionModel.fromMap(m)).toList();
+   }
+ 
+-  // ── Sessions queries for dashboard ──
+-  
+-  Future<List<SessionModel>> getSessionsByWorker(String workerName) async {
+-    final db = await database;
+-    final maps = await db.query('sessions', 
+-        where: 'asha_worker_name = ?', 
+-        whereArgs: [workerName],
+-        orderBy: 'started_at DESC');
+-    return maps.map((m) => SessionModel.fromMap(m)).toList();
+-  }
+-
+-  Future<List<SessionModel>> getSessionsInDateRange(
+-      String workerName, DateTime start, DateTime end) async {
+-    final db = await database;
+-    final startIso = start.toIso8601String();
+-    final endIso = end.toIso8601String();
+-    final maps = await db.query('sessions',
+-        where: 'asha_worker_name = ? AND started_at >= ? AND started_at <= ?',
+-        whereArgs: [workerName, startIso, endIso],
+-        orderBy: 'started_at DESC');
+-    return maps.map((m) => SessionModel.fromMap(m)).toList();
+-  }
+-
+-  Future<Map<String, int>> getTriageLevelCounts(
+-      String workerName, DateTime start, DateTime end) async {
+-    final db = await database;
+-    final startIso = start.toIso8601String();
+-    final endIso = end.toIso8601String();
+-    final maps = await db.rawQuery('''
+-      SELECT triage_level, COUNT(*) as count 
+-      FROM sessions 
+-      WHERE asha_worker_name = ? AND started_at >= ? AND started_at <= ?
+-      GROUP BY triage_level
+-    ''', [workerName, startIso, endIso]);
+-    
+-    final counts = {'RED': 0, 'YELLOW': 0, 'GREEN': 0};
+-    for (final row in maps) {
+-      final level = row['triage_level'] as String?;
+-      if (level != null && counts.containsKey(level)) {
+-        counts[level] = (row['count'] as num).toInt();
+-      }
+-    }
+-    return counts;
+-  }
+-
+-  // ── Pregnancy methods ──
+-
+-  Future<String> insertPregnancyProfile(Map<String, dynamic> profile) async {
+-    final db = await database;
+-    await db.insert('pregnancy_profiles', profile, conflictAlgorithm: ConflictAlgorithm.replace);
+-    return profile['profile_code'] as String;
+-  }
+-
+-  Future<List<Map<String, dynamic>>> getActivePregnancyProfiles(String workerName) async {
+-    final db = await database;
+-    return await db.query('pregnancy_profiles',
+-        where: 'worker_name = ? AND is_active = 1',
+-        whereArgs: [workerName],
+-        orderBy: 'created_at DESC');
+-  }
+-
+-  Future<void> updatePregnancyRisk(String profileCode, String risk) async {
++  Future<List<SessionModel>> searchSessions(String query) async {
+     final db = await database;
+-    await db.update('pregnancy_profiles', {'risk_level': risk},
+-        where: 'profile_code = ?', whereArgs: [profileCode]);
+-  }
+-
+-  Future<void> addPregnancyVisit(Map<String, dynamic> visit) async {
+-    final db = await database;
+-    await db.insert('pregnancy_visits', visit);
+-    final profileCode = visit['profile_code'] as String;
+-    final visitDate = visit['visit_date'] as String;
+-    
+-    await db.rawUpdate('''
+-      UPDATE pregnancy_profiles 
+-      SET visit_count = visit_count + 1, last_visit_date = ? 
+-      WHERE profile_code = ?
+-    ''', [visitDate, profileCode]);
+-  }
+-
+-  Future<List<Map<String, dynamic>>> getPregnancyVisits(String profileCode) async {
+-    final db = await database;
+-    return await db.query('pregnancy_visits',
+-        where: 'profile_code = ?',
+-        whereArgs: [profileCode],
+-        orderBy: 'visit_date DESC');
+-  }
+-
+-  Future<void> incrementVisitCount(String profileCode) async {
+-    final db = await database;
+-    await db.rawUpdate('''
+-      UPDATE pregnancy_profiles 
+-      SET visit_count = visit_count + 1 
+-      WHERE profile_code = ?
+-    ''', [profileCode]);
+-  }
+-
+-  // ── Follow-up methods ──
+-
+-  Future<void> insertFollowupRecord(Map<String, dynamic> record) async {
+-    final db = await database;
+-    await db.insert('followup_records', record, conflictAlgorithm: ConflictAlgorithm.ignore);
+-  }
+-
+-  Future<List<Map<String, dynamic>>> getPendingFollowups(String workerName) async {
+-    final db = await database;
+-    return await db.query('followup_records',
+-        where: 'worker_name = ? AND (reached_hospital = 0 OR treatment_received = 0 OR returned_home = 0)',
+-        whereArgs: [workerName],
+-        orderBy: 'referral_date DESC');
+-  }
+-
+-  Future<void> updateFollowupStatus(
+-      String sessionCode, bool reachedHospital, bool treatmentReceived, bool returnedHome) async {
+-    final db = await database;
+-    await db.update('followup_records', {
+-      'reached_hospital': reachedHospital ? 1 : 0,
+-      'treatment_received': treatmentReceived ? 1 : 0,
+-      'returned_home': returnedHome ? 1 : 0,
+-      'last_updated': DateTime.now().toIso8601String(),
+-    }, where: 'session_code = ?', whereArgs: [sessionCode]);
+-  }
+-
+-  Future<List<Map<String, dynamic>>> getAllFollowups(String workerName) async {
+-    final db = await database;
+-    return await db.query('followup_records',
+-        where: 'worker_name = ?',
+-        whereArgs: [workerName],
+-        orderBy: 'referral_date DESC');
+-  }
+-
+-  // ── Epidemic methods ──
+-
+-  Future<List<SessionModel>> getSessionsLast48Hours(String workerName) async {
+-    final db = await database;
+-    final startIso = DateTime.now().subtract(const Duration(hours: 48)).toIso8601String();
+-    final maps = await db.query('sessions',
+-        where: 'asha_worker_name = ? AND started_at >= ?',
+-        whereArgs: [workerName, startIso]);
++    final maps = await db.query(
++      'sessions',
++      where: 'patient_name LIKE ? OR session_code LIKE ?',
++      whereArgs: ['%$query%', '%$query%'],
++      orderBy: 'started_at DESC',
++    );
+     return maps.map((m) => SessionModel.fromMap(m)).toList();
+   }
+-
+-  Future<void> insertEpidemicSnapshot(Map<String, dynamic> snapshot) async {
+-    final db = await database;
+-    await db.insert('epidemic_snapshots', snapshot);
+-  }
+-
+-  Future<List<Map<String, dynamic>>> getRecentSnapshots(String workerName, int days) async {
+-    final db = await database;
+-    final startIso = DateTime.now().subtract(Duration(days: days)).toIso8601String();
+-    return await db.query('epidemic_snapshots',
+-        where: 'worker_name = ? AND snapshot_date >= ?',
+-        whereArgs: [workerName, startIso],
+-        orderBy: 'snapshot_date DESC');
+-  }
+ }
+-
+diff --git a/frontend/lib/services/embedding_service.dart b/frontend/lib/services/embedding_service.dart
+index 0b2d04c..616e2ed 100644
+--- a/frontend/lib/services/embedding_service.dart
++++ b/frontend/lib/services/embedding_service.dart
+@@ -1,204 +1,20 @@
+-import 'package:flutter/services.dart' show rootBundle;
+-import 'package:tflite_flutter/tflite_flutter.dart';
+-
+-/// Loads `minilm.tflite` and `vocab.txt` from assets, tokenises text
+-/// using an on-device WordPiece implementation, and returns a
+-/// 384-dimensional L2-normalised sentence embedding.
++/// Stub EmbeddingService — TFLite model removed.
++/// All calls are no-ops; the TriageEngine now uses keyword matching directly.
+ class EmbeddingService {
+   // ── Singleton ────────────────────────────────────────────────────────────────
+   EmbeddingService._();
+   static final EmbeddingService instance = EmbeddingService._();
+ 
+-  // ── Constants ───────────────────────────────────────────────────────────────
+-  static const int _seqLen  = 128;
+-  static const int _clsTokenId = 101;   // [CLS]
+-  static const int _sepTokenId = 102;   // [SEP]
+-  static const int _padTokenId = 0;     // [PAD]
+-  static const int _unkTokenId = 100;   // [UNK]
+-
+-  // ── State ───────────────────────────────────────────────────────────────────
+-  late final Interpreter _interpreter;
+-  late final Map<String, int> _vocab;   // token → id
+   bool _isInitialized = false;
+-
+-  /// Whether [init] has completed successfully.
+   bool get isInitialized => _isInitialized;
+ 
+-  // ── Initialisation ──────────────────────────────────────────────────────────
+-
+-  /// Call once before using [getEmbedding]. Loads model and vocab from assets.
++  /// No-op initialisation (model removed).
+   Future<void> initialize() async {
+-    if (_isInitialized) return;
+-    await Future.wait([_loadModel(), _loadVocab()]);
+     _isInitialized = true;
+   }
+ 
+-  Future<void> _loadModel() async {
+-    _interpreter = await Interpreter.fromAsset('assets/model/minilm.tflite');
+-  }
+-
+-  Future<void> _loadVocab() async {
+-    final raw = await rootBundle.loadString('assets/model/vocab.txt');
+-    final lines = raw.split('\n');
+-    _vocab = {};
+-    for (int i = 0; i < lines.length; i++) {
+-      final token = lines[i].trim();
+-      if (token.isNotEmpty) _vocab[token] = i;
+-    }
+-  }
+-
+-  // ── Public API ──────────────────────────────────────────────────────────────
+-
+-  /// Returns a 384-dimensional L2-normalised embedding for [text].
+-  ///
+-  /// Throws [StateError] if [initialize] has not been called (or has not completed).
+-  List<double> getEmbedding(String text) {
+-    if (!_isInitialized) {
+-      throw StateError(
+-        'EmbeddingService is not initialised. '
+-        'Await EmbeddingService.initialize() before calling getEmbedding().',
+-      );
+-    }
+-
+-    // ── Build input tensors ──────────────────────────────────────────────────
+-    // tokenize() returns exactly _seqLen IDs: [CLS] + tokens + [SEP] + [PAD]s
+-    final ids = tokenize(text);
+-
+-    // attentionMask: 1 for every real token, 0 for every [PAD]
+-    final attentionMask = ids
+-        .map((id) => id != _padTokenId ? 1 : 0)
+-        .toList();
+-
+-    // tokenTypeIds: all zeros (single-sentence input, no segment B)
+-    final tokenTypeIds = List<int>.filled(_seqLen, 0);
+-
+-    // Wrap in outer list to represent batch size 1 → shape [1, 128]
+-    final inputIds      = [ids];
+-    final attnMask      = [attentionMask];
+-    final tokenTypesIn  = [tokenTypeIds];
+-
+-    // ── Output buffer ────────────────────────────────────────────────────────
+-    // Shape [1, 384]: one sentence embedding of 384 dimensions
+-    final outputBuffer = [List<double>.filled(384, 0.0)];
+-    const int outputIdx = 0;
+-
+-    // ── Inference ────────────────────────────────────────────────────────────
+-    final inputTensorCount = _interpreter.getInputTensors().length;
+-    final List<Object> inputs;
+-    if (inputTensorCount == 3) {
+-      inputs = [inputIds, attnMask, tokenTypesIn];
+-    } else {
+-      inputs = [inputIds, attnMask];
+-    }
+-
+-    _interpreter.runForMultipleInputs(
+-      inputs,
+-      {outputIdx: outputBuffer},
+-    );
+-
+-    // Return the inner 384-element list (unwrap the batch dimension)
+-    return outputBuffer[0];
+-  }
+-
+-  void dispose() => _interpreter.close();
+-
+-  // ── Tokenisation ────────────────────────────────────────────────────────────
+-
+-  /// Converts [text] into a fixed-length list of exactly [_seqLen] token IDs:
+-  ///   [CLS] + word-piece tokens + [SEP] + [PAD]s (or truncated to fit).
+-  ///
+-  /// Split pattern covers ASCII whitespace, common punctuation, and the
+-  /// Hindi danda (।) and double-danda (॥) characters.
+-  List<int> tokenize(String text) {
+-    // Normalise and split
+-    final cleaned = text.trim();
+-    // Split on: whitespace, . , ! ? ; : ( ) [ ] " ' / - and Hindi dandas
+-    final words = cleaned
+-        .split(RegExp('[\\s.,!?;:()\\[\\]"\'/\\-।॥]+'))
+-        .where((w) => w.isNotEmpty)
+-        .toList();
+-
+-    // WordPiece each word into sub-token IDs
+-    final tokenIds = <int>[];
+-    for (final word in words) {
+-      tokenIds.addAll(_wordPieceTokenize(word));
+-    }
+-
+-    // Build final sequence: [CLS] + tokens + [SEP], then pad / truncate
+-    final maxContent = _seqLen - 2; // reserve slots for CLS + SEP
+-    final content    = tokenIds.length > maxContent
+-        ? tokenIds.sublist(0, maxContent)
+-        : tokenIds;
+-
+-    final result = <int>[
+-      _clsTokenId,
+-      ...content,
+-      _sepTokenId,
+-    ];
+-
+-    // Pad to exactly _seqLen
+-    while (result.length < _seqLen) {
+-      result.add(_padTokenId);
+-    }
+-
+-    // Should already be exactly _seqLen; guard just in case
+-    return result.sublist(0, _seqLen);
+-  }
+-
+-  // ── WordPiece ───────────────────────────────────────────────────────────────
+-
+-  /// Tokenises a single [word] into a list of vocabulary IDs using the
+-  /// WordPiece algorithm (the same algorithm used by BERT-family models).
+-  ///
+-  /// Lookup order for each candidate substring:
+-  ///   1. Exact match in vocab
+-  ///   2. Lowercase version
+-  ///   3. Returns [[_unkTokenId]] if the whole word cannot be decomposed.
+-  List<int> _wordPieceTokenize(String word) {
+-    if (word.isEmpty) return [];
+-
+-    // Fast path: whole word is in vocab (covers most CJK / accented tokens)
+-    final wholeId = _vocabId(word);
+-    if (wholeId != null) return [wholeId];
+-
+-    final result  = <int>[];
+-    int start = 0;
+-
+-    while (start < word.length) {
+-      int end     = word.length;
+-      int? foundId;
+-      String? foundSub;
+-
+-      // Try progressively shorter substrings from [start..end)
+-      while (end > start) {
+-        final raw = word.substring(start, end);
+-        final sub = start == 0 ? raw : '##$raw';
+-
+-        final id = _vocabId(sub);
+-        if (id != null) {
+-          foundId  = id;
+-          foundSub = sub;
+-          break;
+-        }
+-        end--;
+-      }
+-
+-      if (foundId == null) {
+-        // No sub-token found for the remainder → whole word is UNK
+-        return [_unkTokenId];
+-      }
+-
+-      result.add(foundId);
+-      start += (start == 0 ? foundSub!.length : foundSub!.length - 2);
+-    }
+-
+-    return result.isEmpty ? [_unkTokenId] : result;
+-  }
+-
+-  // ── Vocab helpers ───────────────────────────────────────────────────────────
++  /// Stub — returns an empty list. Not used anymore.
++  List<double> getEmbedding(String text) => [];
+ 
+-  /// Returns the vocabulary ID for [token], trying exact then lowercase.
+-  /// Returns null if neither is found.
+-  int? _vocabId(String token) =>
+-      _vocab[token] ?? _vocab[token.toLowerCase()];
++  void dispose() {}
+ }
+diff --git a/frontend/lib/services/onboarding_service.dart b/frontend/lib/services/onboarding_service.dart
+index c900a34..92f82d3 100644
+--- a/frontend/lib/services/onboarding_service.dart
++++ b/frontend/lib/services/onboarding_service.dart
+@@ -1,9 +1,4 @@
+-import 'package:flutter/services.dart';
+ import 'package:shared_preferences/shared_preferences.dart';
+-import 'package:speech_to_text/speech_to_text.dart';
+-import 'stt_service.dart';
+-
+-
+ 
+ class OnboardingService {
+   static const _keyOnboardingDone = 'onboarding_done';
+@@ -21,8 +16,6 @@ class OnboardingService {
+   }
+ 
+   bool get isOnboardingDone => _prefs.getBool(_keyOnboardingDone) ?? false;
+-  
+-  bool isOnboardingComplete() => isOnboardingDone;
+ 
+   Future<void> completeOnboarding(String workerName, {String language = 'hi'}) async {
+     await _prefs.setBool(_keyOnboardingDone, true);
+@@ -30,25 +23,8 @@ class OnboardingService {
+     await _prefs.setString(_keyLanguage, language);
+   }
+ 
+-  Future<void> markOnboardingComplete() => completeOnboarding('ASHA कार्यकर्ता');
+-
+-  String get workerName => _prefs.getString(_keyWorkerName) ?? 'ASHA कार्यकर्ता';
++  String get workerName => _prefs.getString(_keyWorkerName) ?? 'ASHA Worker';
+   String get language   => _prefs.getString(_keyLanguage) ?? 'hi';
+ 
+   Future<void> reset() async => _prefs.clear();
+-
+-
+-
+-  Future<void> openGoogleOfflineSpeechSettings() async {
+-    const platform = MethodChannel('com.asha.triage/settings');
+-    try {
+-      await platform.invokeMethod('openGoogleOfflineSpeech');
+-    } catch (e) {
+-      // fallback handled in MainActivity
+-    }
+-  }
+-
+-  Future<void> openSpeechSettings() async {
+-    await SttService.instance.openSpeechLanguageSettings();
+-  }
+ }
+diff --git a/frontend/lib/services/stt_service.dart b/frontend/lib/services/stt_service.dart
+index 2564029..d2444f5 100644
+--- a/frontend/lib/services/stt_service.dart
++++ b/frontend/lib/services/stt_service.dart
+@@ -16,6 +16,7 @@ class SttService {
+ 
+   final stt.SpeechToText _speech = stt.SpeechToText();
+   bool _isListening = false;
++  bool _userStopped = false;
+   final StreamController<String> _transcriptController =
+       StreamController<String>.broadcast();
+   final ValueNotifier<bool> isListeningNotifier = ValueNotifier<bool>(false);
+@@ -42,7 +43,10 @@ class SttService {
+           if (_testErrorListener != null) {
+             _testErrorListener!(val);
+           }
+-          _handleGlobalError(val);
++          // Only handle errors if user hasn't explicitly stopped
++          if (!_userStopped) {
++            _handleGlobalError(val);
++          }
+         },
+         onStatus: (val) {
+           debugPrint('[STT DEBUG STATUS LOG]: $val');
+@@ -50,8 +54,18 @@ class SttService {
+             isListeningNotifier.value = true;
+             _isListening = true;
+           } else if (val == 'notListening' || val == 'done') {
+-            isListeningNotifier.value = false;
+-            _isListening = false;
++            // Auto-restart if user hasn't stopped it
++            if (!_userStopped) {
++              debugPrint('[STT DEBUG] Auto-restarting listening to keep mic open');
++              Future.delayed(const Duration(milliseconds: 300), () {
++                if (!_userStopped) {
++                  _startListeningInternal(_currentLocale);
++                }
++              });
++            } else {
++              isListeningNotifier.value = false;
++              _isListening = false;
++            }
+           }
+           
+           if (_testStatusListener != null) {
+@@ -83,8 +97,8 @@ class SttService {
+       _isListening = false;
+       final isMarathi = _currentLocale.toLowerCase().contains('mr');
+       final message = isMarathi
+-          ? "मराठी ऑफलाइन स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।"
+-          : "हिंदी ऑफलाइन स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।";
++          ? "मराठी स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।"
++          : "हिंदी स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।";
+       if (_currentOnError != null) {
+         _currentOnError!(message);
+       }
+@@ -93,15 +107,23 @@ class SttService {
+                val.errorMsg == 'error_client' || 
+                val.errorMsg == 'error_server_disconnected' || 
+                val.errorMsg == 'error_network') {
+-      _isListening = false;
+-      _speech.stop();
+-
+-      String userMessage = _currentLocale.toLowerCase().contains('mr')
+-          ? 'ऑफलाइन मॉडल नहीं मिला。\nOffline model not found.\n\nGoogle App → Voice →\nOffline speech recognition →\nDownload Marathi (India)'
+-          : 'ऑफलाइन मॉडल नहीं मिला。\nOffline model not found.\n\nGoogle App → Voice →\nOffline speech recognition →\nDownload Hindi (India)';
+-
+-      if (_currentOnError != null) {
+-        _currentOnError!(userMessage);
++      
++      // We will try to auto-restart the mic smoothly instead of stopping entirely.
++      if (!_userStopped) {
++        Future.delayed(const Duration(milliseconds: 500), () {
++          if (!_userStopped) {
++            _startListeningInternal(_currentLocale);
++          }
++        });
++      }
++    } else if (val.errorMsg == 'error_no_match' || val.errorMsg == 'error_speech_timeout') {
++      // Ignore silence timeouts and just restart
++      if (!_userStopped) {
++        Future.delayed(const Duration(milliseconds: 300), () {
++          if (!_userStopped) {
++            _startListeningInternal(_currentLocale);
++          }
++        });
+       }
+     }
+   }
+@@ -132,7 +154,7 @@ class SttService {
+       };
+ 
+       await _speech.listen(
+-        onDevice: true,
++        onDevice: false,
+         localeId: localeId,
+         partialResults: true,
+       );
+@@ -234,20 +256,20 @@ class SttService {
+     }
+     if (_isListening || !_isInitialized) return;
+ 
++    _userStopped = false;
+     _currentOnError = onError;
+     debugPrint('================================');
+     debugPrint('[STT DEBUG] Starting listen for locale: $locale');
+     debugPrint('================================');
+ 
+-    // Prompt 4 & 5: verify hasDictation, apply fallback
+     final activeLocale = await _resolveLocale(locale);
+     if (activeLocale == null) {
+       debugPrint('[STT] offline_pack_missing — no valid locale for $locale');
+       if (onError != null) {
+         final isMarathi = locale.contains('mr');
+         onError(isMarathi
+-            ? 'मराठी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।'
+-            : 'हिंदी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।');
++            ? 'मराठी स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।'
++            : 'हिंदी स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।');
+       }
+       return;
+     }
+@@ -259,6 +281,12 @@ class SttService {
+     // Notify caller of the actual locale used (so TriageProvider can update)
+     onLocaleResolved?.call(activeLocale);
+ 
++    await _startListeningInternal(activeLocale);
++  }
++
++  Future<void> _startListeningInternal(String activeLocale) async {
++    if (_userStopped) return;
++    
+     await _speech.listen(
+       onResult: (val) {
+         debugPrint('[STT DEBUG RESULT]: ${val.recognizedWords}');
+@@ -267,15 +295,17 @@ class SttService {
+           pushTranscript(val.recognizedWords);
+         }
+       },
+-      onDevice: true,
++      onDevice: false, // Allows seamless switching between online and offline
+       listenMode: stt.ListenMode.dictation,
+       localeId: activeLocale,
+       cancelOnError: false,
+       partialResults: true,
++      pauseFor: const Duration(minutes: 5), // Wait up to 5 minutes without speech
+     );
+   }
+ 
+   Future<String> stopListening() async {
++    _userStopped = true;
+     _isListening = false;
+     isListeningNotifier.value = false;
+     debugPrint('[STT] Stopped listening');
+@@ -291,3 +321,4 @@ class SttService {
+     _transcriptController.close();
+   }
+ }
++
+diff --git a/frontend/lib/services/triage_engine.dart b/frontend/lib/services/triage_engine.dart
+index fe37b9a..f2f849f 100644
+--- a/frontend/lib/services/triage_engine.dart
++++ b/frontend/lib/services/triage_engine.dart
+@@ -99,13 +99,9 @@ class TriageEngine {
+   Future<void> initialize() async {
+     if (_isInitialized) return;
+ 
+-    // ── 1. Load and parse clinical_anchors.json ──────────────────────────────
+-    final rawJson = await rootBundle
+-        .loadString('assets/anchors/clinical_anchors.json');
+-    final Map<String, dynamic> data =
+-        jsonDecode(rawJson) as Map<String, dynamic>;
++    final rawJson = await rootBundle.loadString('assets/anchors/clinical_anchors.json');
++    final Map<String, dynamic> data = jsonDecode(rawJson) as Map<String, dynamic>;
+ 
+-    // ── 2. Parse anchors, combination_rules, and negation_patterns ───────────
+     final anchorsList = data['anchors'] as List<dynamic>;
+     for (final entry in anchorsList) {
+       final concept = entry as Map<String, dynamic>;
+@@ -124,165 +120,106 @@ class TriageEngine {
+     }
+ 
+     _negationPatterns = data['negation_patterns'] as Map<String, dynamic>;
+-
+-    // ── 3. Pre-compute embeddings for every anchor phrase ────────────────────
+-    for (final anchor in _anchors) {
+-      final phrase = anchor['phrase'] as String;
+-      _anchorEmbeddings[phrase] =
+-          EmbeddingService.instance.getEmbedding(phrase);
+-    }
+-
+     _isInitialized = true;
+   }
+ 
+-  // ── Utility methods ──────────────────────────────────────────────────────────
++  // Helper dictionary for keyword matching (English & Hindi)
++  static const Map<String, List<String>> _keywordDictionary = {
++    'breathing difficulty': ['breath', 'सांस', 'साँस', 'दम', 'asthma'],
++    'unconscious unresponsive': ['unconscious', 'faint', 'बेहोश', 'गिर'],
++    'seizure convulsion': ['seizure', 'दौरा', 'दौरे', 'ऐंठन', 'चक्कर'],
++    'severe bleeding': ['bleed', 'blood', 'खून', 'रक्त'],
++    'chest pain': ['chest', 'heart', 'सीने', 'सीना', 'छाती', 'दर्द'],
++    'newborn emergency': ['newborn', 'नवजात', 'पैदा'],
++    'labor delivery complication': ['labor', 'delivery', 'प्रसव', 'डिलीवरी'],
++    'not eating not drinking': ['eat', 'drink', 'खाना', 'पीना'],
++    'high fever many days': ['fever', 'बुखार', 'ताप'],
++    'repeated vomiting': ['vomit', 'उल्टी', 'उल्टियां'],
++    'severe diarrhea': ['diarrhea', 'दस्त', 'जुलाब'],
++    'severe headache': ['headache', 'head', 'सिर', 'सर', 'दर्द'],
++    'pregnancy problem': ['pregnancy', 'pregnant', 'गर्भवती', 'गर्भावस्था'],
++    'child not active lethargic': ['lethargic', 'सुस्त', 'कमजोर'],
++    'swelling body': ['swelling', 'सूजन', 'सूज'],
++    'mild fever': ['fever', 'बुखार', 'ताप'],
++    'common cold cough': ['cold', 'cough', 'सर्दी', 'खांसी', 'ज़ुकाम'],
++    'minor body ache': ['ache', 'pain', 'दर्द', 'बदन', 'शरीर'],
++    'minor stomach ache': ['stomach', 'पेट', 'दर्द'],
++  };
+ 
+-  /// Computes the cosine similarity between two vectors [a] and [b].
+-  ///
+-  /// Unlike a dot-product shortcut, this divides by the product of both L2
+-  /// norms so it works correctly with non-normalised vectors too.
+-  /// Returns 0.0 if either vector has a zero norm (avoids division by zero).
+-  double cosine(List<double> a, List<double> b) {
+-    double dot   = 0.0;
+-    double normA = 0.0;
+-    double normB = 0.0;
+-
+-    for (int i = 0; i < a.length; i++) {
+-      dot   += a[i] * b[i];
+-      normA += a[i] * a[i];
+-      normB += b[i] * b[i];
++  /// Keyword-based chunk detection
++  List<DetectedConcept> analyzeText(
++    String transcript,
++    String ageGroup,
++    String duration,
++  ) {
++    if (!_isInitialized) {
++      throw StateError('TriageEngine is not initialised.');
+     }
+ 
+-    normA = math.sqrt(normA);
+-    normB = math.sqrt(normB);
+-
+-    if (normA == 0.0 || normB == 0.0) return 0.0;
+-
+-    // Clamp to [-1, 1] to guard against floating-point drift
+-    return (dot / (normA * normB)).clamp(-1.0, 1.0);
+-  }
++    final lowerText = transcript.toLowerCase();
++    final detected = <DetectedConcept>[];
+ 
+-  /// Splits [transcript] into overlapping evaluation chunks.
+-  ///
+-  /// Splitting boundaries: commas, Hindi danda (।), Hindi double-danda (॥),
+-  /// full stops, exclamation marks, and question marks.
+-  ///
+-  /// Post-processing:
+-  ///   - Trims and discards chunks whose word count is fewer than 2.
+-  ///   - Deduplicates while preserving order.
+-  ///   - Always appends the full original [transcript] as the last element so
+-  ///     concepts that span multiple sub-clauses are still caught.
+-  List<String> splitIntoChunks(String transcript) {
+-    final raw = transcript.trim();
+-
+-    // Split on sentence/clause boundaries
+-    final parts = raw.split(RegExp(r'[,।॥.!?]+'));
+-
+-    final chunks = <String>{}; // LinkedHashSet preserves insertion order
+-    for (final part in parts) {
+-      final chunk = part.trim();
+-      // Keep only chunks that contain at least 2 whitespace-separated words
+-      if (chunk.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length >= 2) {
+-        chunks.add(chunk);
++    for (final anchor in _anchors) {
++      final key = anchor['key'] as String;
++      final category = anchor['category'] as String;
++      final weight = anchor['weight'] as int;
++      final hindi = anchor['hindi'] as String;
++
++      final keywords = _keywordDictionary[key] ?? [key.toLowerCase()];
++      bool isMatch = false;
++      for (final kw in keywords) {
++        if (lowerText.contains(kw)) {
++          isMatch = true;
++          break;
++        }
+       }
+-    }
+-
+-    final result = chunks.toList();
+-
+-    // Always append the full transcript last so cross-clause concepts are caught
+-    if (result.isEmpty || result.last != raw) {
+-      result.add(raw);
+-    }
+ 
+-    return result;
+-  }
+-
+-  /// Scores [transcript] against all anchors and returns a [TriageResult].
+-  ///
+-  /// For each anchor whose cosine similarity exceeds [threshold] a
+-  /// [DetectedConcept] is created (unconfirmed). The final triage level is
+-  /// determined by the highest-weight confirmed concept after the ASHA worker
+-  /// responds to confirmation questions.
+-  ///
+-  /// Throws [StateError] if [initialize] has not been called first.
+-  List<DetectedConcept> detectConcepts(
+-    String transcript, {
+-    double threshold = 0.40,
+-  }) {
+-    if (!_isInitialized) {
+-      throw StateError(
+-        'TriageEngine is not initialised. '
+-        'Await TriageEngine.instance.initialize() before calling detectConcepts().',
+-      );
++      if (isMatch) {
++        double baseScore = 0.60; 
++        final penalizedScore = _applyNegationPenalty(transcript, key, baseScore);
++        final adjusted = applyModifiers(penalizedScore, ageGroup: ageGroup, duration: duration);
++
++        if (adjusted >= 0.50) {
++          detected.add(DetectedConcept(
++            conceptKey: key,
++            category: category,
++            similarity: adjusted,
++            weight: weight,
++            hindiLabel: hindi,
++            confirmationQuestion: hindi,
++          ));
++        }
++      }
+     }
+ 
+-    final transcriptEmbedding =
+-        EmbeddingService.instance.getEmbedding(transcript);
+-
+-    final detected = <DetectedConcept>[];
+-
+-    for (final anchor in _anchors) {
+-      final key       = anchor['key']      as String;
+-      final phrase    = anchor['phrase']   as String;
+-      final category  = anchor['category'] as String;
+-      final weight    = anchor['weight']   as int;
+-      final hindi     = anchor['hindi']    as String;
+-
+-      final anchorEmb = _anchorEmbeddings[phrase]!;
+-      final similarity = cosine(transcriptEmbedding, anchorEmb);
+-
+-      if (similarity >= threshold) {
+-        detected.add(DetectedConcept(
+-          conceptKey:           key,
+-          category:             category,
+-          similarity:           similarity,
+-          weight:               weight,
+-          hindiLabel:           hindi,
+-          confirmationQuestion: hindi,
+-        ));
++    // Deduplicate fever
++    final feverKeys = ['fever_mild', 'fever_high', 'fever_with_seizure'];
++    final feverConcepts = detected.where((c) => feverKeys.contains(c.conceptKey)).toList();
++    if (feverConcepts.length > 1) {
++      feverConcepts.sort((a, b) => b.similarity.compareTo(a.similarity));
++      for (int i = 1; i < feverConcepts.length; i++) {
++        detected.remove(feverConcepts[i]);
+       }
+     }
+ 
+-    // Return highest-similarity concepts first
+-    detected.sort((a, b) => b.similarity.compareTo(a.similarity));
+-    return detected;
+-  }
++    const categoryOrder = {'RED': 0, 'YELLOW': 1, 'GREEN': 2};
++    detected.sort((a, b) {
++      final catCmp = (categoryOrder[a.category] ?? 3).compareTo(categoryOrder[b.category] ?? 3);
++      if (catCmp != 0) return catCmp;
++      return b.similarity.compareTo(a.similarity);
++    });
+ 
+-  /// Derives the final triage level from a list of worker-confirmed concepts.
+-  ///
+-  /// Priority: RED > YELLOW > GREEN. Ties broken by highest weight.
+-  /// Returns "GREEN" if [confirmed] is empty.
+-  static String resolveLevel(List<DetectedConcept> confirmed) {
+-    if (confirmed.isEmpty) return 'GREEN';
+-    if (confirmed.any((c) => c.category == 'RED'))    return 'RED';
+-    if (confirmed.any((c) => c.category == 'YELLOW')) return 'YELLOW';
+-    return 'GREEN';
++    return detected.take(3).toList();
+   }
+ 
+   // ── Context modifiers ─────────────────────────────────────────────────────────
+ 
+-  /// Adjusts a raw cosine [similarity] score upward based on patient context.
+-  ///
+-  /// Rules (additive, capped at 1.0):
+-  /// | ageGroup          | boost  | Rationale                              |
+-  /// |-------------------|--------|----------------------------------------|
+-  /// | "newborn"/"infant"| +0.08  | Neonates deteriorate faster            |
+-  /// | "elderly"         | +0.05  | Higher baseline risk                   |
+-  /// | "child"           | +0.03  | Paediatric reserve lower than adults   |
+-  ///
+-  /// | duration          | boost  | Rationale                              |
+-  /// |-------------------|--------|----------------------------------------|
+-  /// | contains "week"   | +0.07  | Prolonged symptoms raise urgency       |
+-  /// | contains "day"    | +0.04  | Multi-day illness more serious         |
+-  /// | contains "hour"   | +0.02  | Acute onset, slight boost              |
+   double applyModifiers(
+     double similarity, {
+     required String ageGroup,
+     required String duration,
+   }) {
+     double boost = 0.0;
+-
+-    // ── Age-group modifier ───────────────────────────────────────────────────
+     final age = ageGroup.toLowerCase().trim();
+     if (age == 'newborn' || age == 'infant') {
+       boost += 0.08;
+@@ -292,7 +229,6 @@ class TriageEngine {
+       boost += 0.03;
+     }
+ 
+-    // ── Duration modifier ────────────────────────────────────────────────────
+     final dur = duration.toLowerCase();
+     if (dur.contains('week')) {
+       boost += 0.07;
+@@ -360,107 +296,6 @@ class TriageEngine {
+     return null;
+   }
+ 
+-  // ── Public analysis API ───────────────────────────────────────────────────────
+-
+-  /// Analyses [transcript] in context of [ageGroup] and [duration] and
+-  /// returns the top-3 most clinically relevant [DetectedConcept]s.
+-  ///
+-  /// Algorithm:
+-  ///   1. Splits [transcript] into overlapping chunks via [splitIntoChunks].
+-  ///   2. Embeds every chunk with [EmbeddingService.instance.getEmbedding].
+-  ///   3. For each anchor, takes the **maximum** cosine similarity across
+-  ///      all chunk embeddings (best-match semantics).
+-  ///   4. Applies [applyModifiers] to that maximum score.
+-  ///   5. Keeps only concepts whose adjusted score is ≥ 0.50.
+-  ///   6. Sorts: RED before YELLOW before GREEN; within each band,
+-  ///      descending by adjusted similarity.
+-  ///   7. Returns at most the top 3 results.
+-  ///
+-  /// Throws [StateError] if [initialize] has not been called first.
+-  List<DetectedConcept> analyzeText(
+-    String transcript,
+-    String ageGroup,
+-    String duration,
+-  ) {
+-    if (!_isInitialized) {
+-      throw StateError(
+-        'TriageEngine is not initialised. '
+-        'Await TriageEngine.instance.initialize() before calling analyzeText().',
+-      );
+-    }
+-
+-    // ── 1. Split transcript into evaluation chunks ───────────────────────────
+-    final chunks = splitIntoChunks(transcript);
+-
+-    // ── 2. Embed every chunk (full transcript is always the last chunk) ───────
+-    final chunkEmbeddings = chunks
+-        .map(EmbeddingService.instance.getEmbedding)
+-        .toList();
+-
+-    // ── 3-5. Score every anchor against all chunks ───────────────────────────
+-    const double threshold = 0.50;
+-    final detected = <DetectedConcept>[];
+-
+-    for (final anchor in _anchors) {
+-      final key      = anchor['key']      as String;
+-      final phrase   = anchor['phrase']   as String;
+-      final category = anchor['category'] as String;
+-      final weight   = anchor['weight']   as int;
+-      final hindi    = anchor['hindi']    as String;
+-
+-      final anchorEmb = _anchorEmbeddings[phrase]!;
+-
+-      // Maximum cosine similarity across all chunk embeddings
+-      double maxSimilarity = 0.0;
+-      for (final chunkEmb in chunkEmbeddings) {
+-        final sim = cosine(chunkEmb, anchorEmb);
+-        if (sim > maxSimilarity) maxSimilarity = sim;
+-      }
+-
+-      final penalizedScore = _applyNegationPenalty(transcript, key, maxSimilarity);
+-
+-      // Apply age/duration context modifiers
+-      final adjusted = applyModifiers(
+-        penalizedScore,
+-        ageGroup: ageGroup,
+-        duration: duration,
+-      );
+-
+-      if (adjusted >= threshold) {
+-        detected.add(DetectedConcept(
+-          conceptKey:           key,
+-          category:             category,
+-          similarity:           adjusted,
+-          weight:               weight,
+-          hindiLabel:           hindi,
+-          confirmationQuestion: hindi,
+-        ));
+-      }
+-    }
+-
+-    // Deduplicate severity for fever
+-    final feverKeys = ['fever_mild', 'fever_high', 'fever_with_seizure'];
+-    final feverConcepts = detected.where((c) => feverKeys.contains(c.conceptKey)).toList();
+-    if (feverConcepts.length > 1) {
+-      feverConcepts.sort((a, b) => b.similarity.compareTo(a.similarity));
+-      for (int i = 1; i < feverConcepts.length; i++) {
+-        detected.remove(feverConcepts[i]);
+-      }
+-    }
+-
+-    // ── 6. Sort: RED > YELLOW > GREEN, then by similarity descending ──────────
+-    const categoryOrder = {'RED': 0, 'YELLOW': 1, 'GREEN': 2};
+-    detected.sort((a, b) {
+-      final catCmp = (categoryOrder[a.category] ?? 3)
+-          .compareTo(categoryOrder[b.category] ?? 3);
+-      if (catCmp != 0) return catCmp;
+-      return b.similarity.compareTo(a.similarity); // within band: highest first
+-    });
+-
+-    // ── 7. Return top 3 ───────────────────────────────────────────────────────
+-    return detected.take(3).toList();
+-  }
+-
+   // ── Scoring ───────────────────────────────────────────────────────────────────
+ 
+   /// Converts a list of [concepts] (some worker-confirmed, some not) into a
+diff --git a/frontend/linux/flutter/generated_plugins.cmake b/frontend/linux/flutter/generated_plugins.cmake
+index c7a1ac5..f37f40b 100644
+--- a/frontend/linux/flutter/generated_plugins.cmake
++++ b/frontend/linux/flutter/generated_plugins.cmake
+@@ -11,7 +11,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
+ 
+ list(APPEND FLUTTER_FFI_PLUGIN_LIST
+   jni
+-  tflite_flutter
+ )
+ 
+ set(PLUGIN_BUNDLED_LIBRARIES)
+diff --git a/frontend/macos/Flutter/GeneratedPluginRegistrant.swift b/frontend/macos/Flutter/GeneratedPluginRegistrant.swift
+index d199de4..de477e8 100644
+--- a/frontend/macos/Flutter/GeneratedPluginRegistrant.swift
++++ b/frontend/macos/Flutter/GeneratedPluginRegistrant.swift
+@@ -8,6 +8,7 @@ import Foundation
+ import audioplayers_darwin
+ import flutter_tts
+ import mobile_scanner
++import network_info_plus
+ import package_info_plus
+ import printing
+ import record_macos
+@@ -21,6 +22,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+   AudioplayersDarwinPlugin.register(with: registry.registrar(forPlugin: "AudioplayersDarwinPlugin"))
+   FlutterTtsPlugin.register(with: registry.registrar(forPlugin: "FlutterTtsPlugin"))
+   MobileScannerPlugin.register(with: registry.registrar(forPlugin: "MobileScannerPlugin"))
++  NetworkInfoPlusPlugin.register(with: registry.registrar(forPlugin: "NetworkInfoPlusPlugin"))
+   FPPPackageInfoPlusPlugin.register(with: registry.registrar(forPlugin: "FPPPackageInfoPlusPlugin"))
+   PrintingPlugin.register(with: registry.registrar(forPlugin: "PrintingPlugin"))
+   RecordMacOsPlugin.register(with: registry.registrar(forPlugin: "RecordMacOsPlugin"))
+diff --git a/frontend/pubspec.lock b/frontend/pubspec.lock
+index b764598..fb213db 100644
+--- a/frontend/pubspec.lock
++++ b/frontend/pubspec.lock
+@@ -416,6 +416,30 @@ packages:
+       url: "https://pub.dev"
+     source: hosted
+     version: "1.0.0"
++  network_info_plus:
++    dependency: "direct main"
++    description:
++      name: network_info_plus
++      sha256: "2866dadcbee2709e20d67737a1556f5675b8b0cdcf2c1659ba74bc21bffede4f"
++      url: "https://pub.dev"
++    source: hosted
++    version: "7.0.0"
++  network_info_plus_platform_interface:
++    dependency: transitive
++    description:
++      name: network_info_plus_platform_interface
++      sha256: "7e7496a8a9d8136859b8881affc613c4a21304afeb6c324bcefc4bd0aff6b94b"
++      url: "https://pub.dev"
++    source: hosted
++    version: "2.0.2"
++  nm:
++    dependency: transitive
++    description:
++      name: nm
++      sha256: "2c9aae4127bdc8993206464fcc063611e0e36e72018696cd9631023a31b24254"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.5.0"
+   objective_c:
+     dependency: transitive
+     description:
+@@ -424,6 +448,14 @@ packages:
+       url: "https://pub.dev"
+     source: hosted
+     version: "9.4.1"
++  open_filex:
++    dependency: "direct main"
++    description:
++      name: open_filex
++      sha256: "9976da61b6a72302cf3b1efbce259200cd40232643a467aac7370addf94d6900"
++      url: "https://pub.dev"
++    source: hosted
++    version: "4.7.0"
+   package_config:
+     dependency: transitive
+     description:
+@@ -648,14 +680,6 @@ packages:
+       url: "https://pub.dev"
+     source: hosted
+     version: "4.1.0"
+-  quiver:
+-    dependency: transitive
+-    description:
+-      name: quiver
+-      sha256: ea0b925899e64ecdfbf9c7becb60d5b50e706ade44a85b2363be2a22d88117d2
+-      url: "https://pub.dev"
+-    source: hosted
+-    version: "3.2.2"
+   record:
+     dependency: "direct main"
+     description:
+@@ -800,6 +824,14 @@ packages:
+       url: "https://pub.dev"
+     source: hosted
+     version: "2.4.1"
++  shelf:
++    dependency: "direct main"
++    description:
++      name: shelf
++      sha256: e7dd780a7ffb623c57850b33f43309312fc863fb6aa3d276a754bb299839ef12
++      url: "https://pub.dev"
++    source: hosted
++    version: "1.4.2"
+   sky_engine:
+     dependency: transitive
+     description: flutter
+@@ -925,14 +957,6 @@ packages:
+       url: "https://pub.dev"
+     source: hosted
+     version: "0.7.10"
+-  tflite_flutter:
+-    dependency: "direct main"
+-    description:
+-      name: tflite_flutter
+-      sha256: "0bba9040d8decda0960d7abf8eabf32243bf092bc7d0084e8e19681866b0bdbe"
+-      url: "https://pub.dev"
+-    source: hosted
+-    version: "0.12.1"
+   typed_data:
+     dependency: transitive
+     description:
+diff --git a/frontend/pubspec.yaml b/frontend/pubspec.yaml
+index ce2dc41..a4eed1f 100644
+--- a/frontend/pubspec.yaml
++++ b/frontend/pubspec.yaml
+@@ -14,6 +14,7 @@ dependencies:
+   provider: ^6.1.1
+ 
+   # Speech recognition
++  speech_to_text: ^7.4.0
+ 
+   # Text-to-speech
+   flutter_tts: ^3.8.5
+@@ -27,13 +28,15 @@ dependencies:
+   intl: ^0.19.0
+   uuid: ^4.3.3
+ 
+-  # New features
++  # PDF & Sharing
++  pdf: ^3.11.0
++  share_plus: ^7.2.1
++
++  # Extra screens (dashboard, QR, charts)
+   qr_flutter: ^4.1.0
+   mobile_scanner: ^3.5.6
+   fl_chart: ^0.66.2
+-  pdf: ^3.11.0
+   printing: ^5.12.0
+-  share_plus: ^7.2.1
+ 
+   # Local Database & Storage
+   shared_preferences: ^2.2.2
+@@ -42,14 +45,12 @@ dependencies:
+   path_provider: ^2.1.2
+   permission_handler: ^11.3.0
+ 
+-  # Machine Learning (Offline Inference)
+-  tflite_flutter: ^0.12.1
+-
+-  # Wakelock
++  # Wakelock & Audio recording
+   wakelock_plus: ^1.1.4
+   record: ^6.2.1
+-  speech_to_text: ^7.4.0
+-
++  shelf: ^1.4.2
++  network_info_plus: ^7.0.0
++  open_filex: ^4.7.0
+ 
+ dev_dependencies:
+   flutter_test:
+diff --git a/frontend/windows/flutter/generated_plugins.cmake b/frontend/windows/flutter/generated_plugins.cmake
+index 3cd8dbc..b4b0fa3 100644
+--- a/frontend/windows/flutter/generated_plugins.cmake
++++ b/frontend/windows/flutter/generated_plugins.cmake
+@@ -15,7 +15,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
+ 
+ list(APPEND FLUTTER_FFI_PLUGIN_LIST
+   jni
+-  tflite_flutter
+ )
+ 
+ set(PLUGIN_BUNDLED_LIBRARIES)

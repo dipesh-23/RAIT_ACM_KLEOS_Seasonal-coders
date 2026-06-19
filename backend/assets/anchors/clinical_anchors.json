@@ -7,7 +7,15 @@
     { "phrase": "chest pain",                     "hindi": "सीने में दर्द",                "weight": 9  },
     { "phrase": "newborn emergency",              "hindi": "नवजात शिशु आपातकाल",           "weight": 10 },
     { "phrase": "labor delivery complication",    "hindi": "प्रसव में जटिलता",              "weight": 10 },
-    { "phrase": "not eating not drinking",        "hindi": "खाना पीना बंद करना",           "weight": 8  }
+    { "phrase": "not eating not drinking",        "hindi": "खाना पीना बंद करना",           "weight": 8  },
+    { "phrase": "loss of consciousness",          "hindi": "होश खो देना",                  "weight": 10 },
+    { "phrase": "choking unable to breathe",      "hindi": "गला घुटना सांस नहीं आ रही",   "weight": 10 },
+    { "phrase": "stroke face drooping",           "hindi": "लकवा चेहरा टेढ़ा होना",        "weight": 10 },
+    { "phrase": "head injury trauma",             "hindi": "सिर में चोट",                  "weight": 9  },
+    { "phrase": "poisoning overdose",             "hindi": "जहर खाना या अधिक दवा लेना",   "weight": 10 },
+    { "phrase": "high blood pressure crisis",     "hindi": "ब्लड प्रेशर बहुत ज्यादा",     "weight": 9  },
+    { "phrase": "baby not moving in womb",        "hindi": "पेट में बच्चा हिल नहीं रहा",  "weight": 10 },
+    { "phrase": "severe allergic reaction",       "hindi": "तीव्र एलर्जी प्रतिक्रिया",    "weight": 10 }
   ],
   "YELLOW": [
     { "phrase": "high fever many days",           "hindi": "कई दिनों से तेज बुखार",        "weight": 6 },
@@ -16,12 +24,29 @@
     { "phrase": "severe headache",                "hindi": "तेज सिरदर्द",                  "weight": 5 },
     { "phrase": "pregnancy problem",              "hindi": "गर्भावस्था में समस्या",         "weight": 6 },
     { "phrase": "child not active lethargic",     "hindi": "बच्चा सुस्त और निष्क्रिय है", "weight": 6 },
-    { "phrase": "swelling body",                  "hindi": "शरीर में सूजन",                "weight": 5 }
+    { "phrase": "swelling body",                  "hindi": "शरीर में सूजन",                "weight": 5 },
+    { "phrase": "moderate dehydration",           "hindi": "पानी की कमी है",               "weight": 5 },
+    { "phrase": "urinary burning pain",           "hindi": "पेशाब में जलन और दर्द",        "weight": 4 },
+    { "phrase": "abdominal pain stomach cramp",   "hindi": "पेट में दर्द और ऐंठन",         "weight": 5 },
+    { "phrase": "ear pain discharge",             "hindi": "कान में दर्द और मवाद",         "weight": 4 },
+    { "phrase": "skin rash spreading",            "hindi": "त्वचा पर दाने फैल रहे हैं",   "weight": 5 },
+    { "phrase": "persistent cough blood",         "hindi": "खांसी में खून आना",            "weight": 6 },
+    { "phrase": "malaria symptoms fever chills",  "hindi": "मलेरिया बुखार ठंड लगना",       "weight": 6 },
+    { "phrase": "jaundice yellow eyes skin",      "hindi": "पीलिया आंखें और त्वचा पीली",   "weight": 6 },
+    { "phrase": "animal bite snake bite",         "hindi": "जानवर काटना साँप काटना",       "weight": 7 }
   ],
   "GREEN": [
     { "phrase": "mild fever",                     "hindi": "हल्का बुखार",                  "weight": 2 },
     { "phrase": "common cold cough",              "hindi": "सामान्य सर्दी-खांसी",          "weight": 1 },
     { "phrase": "minor body ache",                "hindi": "हल्का शरीर दर्द",              "weight": 1 },
-    { "phrase": "minor stomach ache",             "hindi": "हल्का पेट दर्द",               "weight": 1 }
+    { "phrase": "minor stomach ache",             "hindi": "हल्का पेट दर्द",               "weight": 1 },
+    { "phrase": "routine checkup",                "hindi": "सामान्य जांच",                 "weight": 1 },
+    { "phrase": "minor cut wound",                "hindi": "छोटी खरोंच या घाव",            "weight": 1 },
+    { "phrase": "vaccination immunization",       "hindi": "टीका लगवाना",                  "weight": 1 },
+    { "phrase": "antenatal checkup",              "hindi": "गर्भावस्था की नियमित जांच",    "weight": 1 },
+    { "phrase": "mild headache",                  "hindi": "हल्का सिरदर्द",                "weight": 1 },
+    { "phrase": "constipation",                   "hindi": "कब्ज",                          "weight": 1 },
+    { "phrase": "minor insect bite",              "hindi": "छोटे कीड़े का काटना",          "weight": 1 },
+    { "phrase": "mild allergy itching",           "hindi": "हल्की एलर्जी खुजली",           "weight": 1 }
   ]
 }

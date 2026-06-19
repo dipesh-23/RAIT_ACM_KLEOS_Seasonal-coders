@@ -6,7 +6,7 @@ import '../providers/triage_provider.dart';
 import '../utils/app_strings.dart';
 import 'confirmation_screen.dart';
 import 'voice_screen.dart';
-import 'result_screen.dart';
+import 'profile_screen.dart';
 
 class TranscriptionScreen extends StatefulWidget {
   const TranscriptionScreen({super.key});
@@ -16,7 +16,13 @@ class TranscriptionScreen extends StatefulWidget {
 }
 
 class _TranscriptionScreenState extends State<TranscriptionScreen> {
-  bool _wasAnalyzing = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TriageProvider>().analyzeTranscription();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +32,9 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-              children: [
+      body: SafeArea(
+        child: Column(
+          children: [
             // ── Header ──
             Container(
               color: AppTheme.bgWhite,
@@ -43,13 +47,18 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                       style: GoogleFonts.poppins(
                           fontSize: 18, fontWeight: FontWeight.w700,
                           color: AppTheme.textDark))),
-                  Container(
-                    width: 38, height: 38,
-                    decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        shape: BoxShape.circle),
-                    child: const Icon(Icons.person_rounded,
-                        color: Colors.white, size: 20),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
+                    child: Container(
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(
+                          gradient: AppTheme.primaryGradient,
+                          shape: BoxShape.circle),
+                      child: const Icon(Icons.person_rounded,
+                          color: Colors.white, size: 20),
+                    ),
                   ),
                 ],
               ),
@@ -131,56 +140,77 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                             color: AppTheme.textDark, fontSize: 14,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8, runSpacing: 8,
-                      children: [
-                        _symptomChip('बुखार', AppTheme.triageYellow),
-                        _symptomChip('खांसी', AppTheme.triageYellow),
-                        _symptomChip('सांस में तकलीफ', AppTheme.triageRed),
-                        _symptomChip('3 दिन से लक्षण', AppTheme.textLight),
-                      ],
-                    ),
+                    if (provider.isProcessing)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (provider.detectedConcepts.isEmpty)
+                      Text("No symptoms detected.",
+                          style: GoogleFonts.poppins(
+                              color: AppTheme.textLight, fontSize: 14))
+                    else
+                      Wrap(
+                        spacing: 8, runSpacing: 8,
+                        children: provider.detectedConcepts.map((concept) {
+                          Color color = AppTheme.textMedium;
+                          if (concept.category == "RED") color = AppTheme.triageRed;
+                          if (concept.category == "YELLOW") color = AppTheme.triageYellow;
+                          if (concept.category == "GREEN") color = AppTheme.triageGreen;
+                          return _symptomChip(concept.getLabelForLang(lang), color);
+                        }).toList(),
+                      ),
 
                     const SizedBox(height: 24),
 
                     // ── Confidence Indicator ──
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.bgWhite,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: AppTheme.cardShadow,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(AppStrings.get('ai_confidence_score', lang),
-                                  style: GoogleFonts.poppins(
-                                      color: AppTheme.textDark, fontSize: 13,
-                                      fontWeight: FontWeight.w600)),
-                              Text('82%',
-                                  style: GoogleFonts.poppins(
-                                      color: AppTheme.primary, fontSize: 15,
-                                      fontWeight: FontWeight.w700)),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: LinearProgressIndicator(
-                              value: 0.82,
-                              minHeight: 8,
-                              backgroundColor: AppTheme.borderColor,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppTheme.primary),
+                    if (!provider.isProcessing && provider.detectedConcepts.isNotEmpty) ...[
+                      Builder(
+                        builder: (context) {
+                          double totalScore = provider.detectedConcepts.fold(0.0, (sum, c) => sum + c.similarity);
+                          double avgScore = totalScore / provider.detectedConcepts.length;
+                          int pct = (avgScore * 100).round();
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppTheme.bgWhite,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: AppTheme.cardShadow,
                             ),
-                          ),
-                        ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(AppStrings.get('ai_confidence_score', lang),
+                                        style: GoogleFonts.poppins(
+                                            color: AppTheme.textDark, fontSize: 13,
+                                            fontWeight: FontWeight.w600)),
+                                    Text('$pct%',
+                                        style: GoogleFonts.poppins(
+                                            color: AppTheme.primary, fontSize: 15,
+                                            fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: LinearProgressIndicator(
+                                    value: avgScore,
+                                    minHeight: 8,
+                                    backgroundColor: AppTheme.borderColor,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        AppTheme.primary),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                    ],
 
                     const SizedBox(height: 24),
 
@@ -215,8 +245,12 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              context.read<TriageProvider>().setTranscript(text);
+                            onPressed: provider.isProcessing ? null : () {
+                              if (!context.mounted) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const ConfirmationScreen()),
+                              );
                             },
                             icon: const Icon(Icons.check_rounded, size: 18),
                             label: Text(AppStrings.get('correct_continue', lang),
@@ -237,45 +271,6 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
             ),
           ],
         ),
-      ),
-      Consumer<TriageProvider>(
-        builder: (context, provider, child) {
-          if (provider.isAnalyzing) {
-            _wasAnalyzing = true;
-            return Container(
-              color: Colors.black87,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: AppTheme.primary),
-                    const SizedBox(height: 20),
-                    Text('विश्लेषण हो रहा है',
-                        style: GoogleFonts.poppins(
-                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            );
-          } else if (_wasAnalyzing) {
-            _wasAnalyzing = false;
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              if (provider.detectedConcepts.isEmpty) {
-                await provider.scoreAndNavigate();
-                if (mounted) {
-                  Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ResultScreen()));
-                }
-              } else {
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ConfirmationScreen()));
-              }
-            });
-          }
-          return const SizedBox.shrink();
-        },
-      ),
-      ],
       ),
     );
   }

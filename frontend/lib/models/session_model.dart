@@ -57,6 +57,8 @@ class SessionModel {
   final bool isCompleted;
   final bool referralGenerated;
 
+  final String? slipFilePath;
+
   SessionModel({
     String? id,
     String? sessionCode,
@@ -72,6 +74,7 @@ class SessionModel {
     DateTime? startedAt,
     this.isCompleted = false,
     this.referralGenerated = false,
+    this.slipFilePath,
   })  : id = id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         sessionCode = sessionCode ?? _generateCode(),
         startedAt = startedAt ?? DateTime.now();
@@ -94,6 +97,7 @@ class SessionModel {
     String? triageLevel,
     bool? isCompleted,
     bool? referralGenerated,
+    String? slipFilePath,
   }) {
     return SessionModel(
       id: id,
@@ -110,6 +114,7 @@ class SessionModel {
       startedAt: startedAt,
       isCompleted: isCompleted ?? this.isCompleted,
       referralGenerated: referralGenerated ?? this.referralGenerated,
+      slipFilePath: slipFilePath ?? this.slipFilePath,
     );
   }
 
@@ -128,6 +133,7 @@ class SessionModel {
     'started_at': startedAt.toIso8601String(),
     'is_completed': isCompleted ? 1 : 0,
     'referral_generated': referralGenerated ? 1 : 0,
+    'slip_file_path': slipFilePath,
   };
 
   factory SessionModel.fromMap(Map<String, dynamic> map) => SessionModel(
@@ -149,5 +155,6 @@ class SessionModel {
     startedAt: DateTime.parse(map['started_at']),
     isCompleted: map['is_completed'] == 1,
     referralGenerated: map['referral_generated'] == 1,
+    slipFilePath: map['slip_file_path'],
   );
 }

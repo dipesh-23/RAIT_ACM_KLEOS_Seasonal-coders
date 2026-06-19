@@ -1,293 +1,324 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-
-enum OfflineModelStatus {
-  available,
-  offlineModelMissing,
-  languagePackMissing,
-  unknown
-}
+import 'package:record/record.dart';
+import 'package:vosk_flutter/vosk_flutter.dart';
+import 'noise_suppressor.dart';
 
 class SttService {
   static final SttService instance = SttService._();
   SttService._();
 
-  final stt.SpeechToText _speech = stt.SpeechToText();
+  final VoskFlutterPlugin _vosk = VoskFlutterPlugin.instance();
+  final Map<String, Model> _loadedModels = {};
+  Model? _activeModel;
+  String? _activeLocale;
+
+  Recognizer? _recognizer;
+
+  // AudioRecorder from the `record` package (v5.0.4).
+  // Provides a Stream<Uint8List> of raw PCM-16 mono audio that we feed
+  // manually into the Vosk recognizer via acceptWaveformBytes().
+  final AudioRecorder _audioRecorder = AudioRecorder();
+
+  // Subscription held when audio is being captured so we can cancel it cleanly.
+  StreamSubscription<Uint8List>? _audioStreamSubscription;
+
+  // Noise suppressor — reset at the start of every session.
+  final NoiseSuppressor _noiseSuppressor = NoiseSuppressor();
+
+  // Exposes the calibration state so the UI can show a calibration banner.
+  final ValueNotifier<bool> isCalibratedNotifier = ValueNotifier<bool>(false);
+
+  // Guards against concurrent chunk processing — if Vosk is still handling
+  // the previous chunk when a new one arrives, drop the new one rather than
+  // letting async calls pile up (which causes stale, delayed transcription).
+  bool _processingChunk = false;
+
   bool _isListening = false;
+  bool _isStarting = false; // Guard against concurrent startListening calls
+
   final StreamController<String> _transcriptController =
       StreamController<String>.broadcast();
   final ValueNotifier<bool> isListeningNotifier = ValueNotifier<bool>(false);
 
   Stream<String> get transcriptStream => _transcriptController.stream;
   bool get isListening => _isListening;
+
   bool _isInitialized = false;
 
-  String _currentLocale = 'hi-IN';
   Function(String)? _currentOnError;
-  Function(dynamic)? _testErrorListener;
-  Function(String)? _testStatusListener;
 
-  Future<bool> initialize() async {
-    if (_isInitialized) return true;
+  // ---------------------------------------------------------------------------
+  // Initialization
+  // ---------------------------------------------------------------------------
+
+  Future<bool> initialize({String locale = 'hi-IN'}) async {
+    String assetPath;
+    String modelKey;
+    if (locale.startsWith('en')) {
+      assetPath = 'assets/vosk/vosk-model-small-en-us-0.15.zip';
+      modelKey = 'en-US';
+    } else {
+      assetPath = 'assets/vosk/vosk-model-small-hi-0.22.zip';
+      modelKey = 'hi-IN';
+    }
+
+    if (_loadedModels.containsKey(modelKey)) {
+      _activeModel = _loadedModels[modelKey];
+      _activeLocale = modelKey;
+      _isInitialized = true;
+      return true;
+    }
+
     try {
-      _isInitialized = await _speech.initialize(
-        onError: (val) {
-          debugPrint('================================');
-          debugPrint('[STT DEBUG ERROR LOG]:');
-          debugPrint('Error Msg: ${val.errorMsg}');
-          debugPrint('Permanent: ${val.permanent}');
-          debugPrint('================================');
-          if (_testErrorListener != null) {
-            _testErrorListener!(val);
-          }
-          _handleGlobalError(val);
-        },
-        onStatus: (val) {
-          debugPrint('[STT DEBUG STATUS LOG]: $val');
-          if (val == 'listening') {
-            isListeningNotifier.value = true;
-            _isListening = true;
-          } else if (val == 'notListening' || val == 'done') {
-            isListeningNotifier.value = false;
-            _isListening = false;
-          }
-          
-          if (_testStatusListener != null) {
-            _testStatusListener!(val);
-          }
-        },
-      );
-      debugPrint('[STT DEBUG] Service initialized: $_isInitialized');
-      if (_isInitialized) {
-        final locales = await _speech.locales();
-        debugPrint('================================');
-        debugPrint('[STT DEBUG] AVAILABLE DEVICE LOCALES:');
-        for (var locale in locales) {
-          if (locale.localeId.startsWith('hi') || locale.localeId.startsWith('mr') || locale.localeId.startsWith('en')) {
-            debugPrint('Locale: ${locale.name} -> ID: ${locale.localeId}');
-          }
-        }
-        debugPrint('================================');
-      }
+      debugPrint('[VOSK] Extracting $modelKey model from assets...');
+      final modelLoader = ModelLoader();
+      final modelPath = await modelLoader.loadFromAssets(assetPath);
+      debugPrint('[VOSK] Model extracted to: $modelPath');
+
+      final newModel = await _vosk.createModel(modelPath);
+      _loadedModels[modelKey] = newModel;
+      _activeModel = newModel;
+      _activeLocale = modelKey;
+      debugPrint('[VOSK] Model $modelKey created successfully!');
+
+      _isInitialized = true;
     } catch (e) {
-      debugPrint('[STT] Initialization failed: $e');
+      debugPrint('[VOSK] Initialization failed: $e');
       _isInitialized = false;
+      _currentOnError?.call('Vosk Init Error ($modelKey): $e');
     }
     return _isInitialized;
   }
 
-  void _handleGlobalError(dynamic val) {
-    if (val.errorMsg == 'error_language_not_supported') {
-      _isListening = false;
-      final isMarathi = _currentLocale.toLowerCase().contains('mr');
-      final message = isMarathi
-          ? "मराठी ऑफलाइन स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।"
-          : "हिंदी ऑफलाइन स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।";
-      if (_currentOnError != null) {
-        _currentOnError!(message);
-      }
-      openSpeechLanguageSettings();
-    } else if (val.errorMsg == 'error_language_unavailable' || 
-               val.errorMsg == 'error_client' || 
-               val.errorMsg == 'error_server_disconnected' || 
-               val.errorMsg == 'error_network') {
-      _isListening = false;
-      _speech.stop();
-
-      String userMessage = _currentLocale.toLowerCase().contains('mr')
-          ? 'ऑफलाइन मॉडल नहीं मिला。\nOffline model not found.\n\nGoogle App → Voice →\nOffline speech recognition →\nDownload Marathi (India)'
-          : 'ऑफलाइन मॉडल नहीं मिला。\nOffline model not found.\n\nGoogle App → Voice →\nOffline speech recognition →\nDownload Hindi (India)';
-
-      if (_currentOnError != null) {
-        _currentOnError!(userMessage);
-      }
-    }
-  }
-
-  Future<OfflineModelStatus> isLocaleAvailable(String localeId) async {
-    try {
-      bool initialized = await initialize();
-      if (!initialized) return OfflineModelStatus.unknown;
-
-      final completer = Completer<OfflineModelStatus>();
-
-      _testErrorListener = (error) {
-        if (!completer.isCompleted) {
-          if (error.errorMsg == 'error_language_not_supported') {
-            completer.complete(OfflineModelStatus.languagePackMissing);
-          } else if (error.errorMsg == 'error_language_unavailable' || error.errorMsg == 'error_client') {
-            completer.complete(OfflineModelStatus.offlineModelMissing);
-          } else {
-            completer.complete(OfflineModelStatus.unknown);
-          }
-        }
-      };
-
-      _testStatusListener = (status) {
-        if (status == 'listening' && !completer.isCompleted) {
-          completer.complete(OfflineModelStatus.available);
-        }
-      };
-
-      await _speech.listen(
-        onDevice: true,
-        localeId: localeId,
-        partialResults: true,
-      );
-
-      // Wait up to 4 seconds for the engine to either start listening or throw an error
-      Timer(const Duration(seconds: 4), () {
-        if (!completer.isCompleted) {
-          completer.complete(OfflineModelStatus.unknown);
-        }
-      });
-
-      final result = await completer.future;
-
-      await _speech.stop();
-
-      _testErrorListener = null;
-      _testStatusListener = null;
-
-      return result;
-    } catch (e) {
-      debugPrint('Error testing locale $localeId: $e');
-      _testErrorListener = null;
-      _testStatusListener = null;
-      try {
-        await _speech.stop();
-      } catch (_) {}
-      return OfflineModelStatus.unknown;
-    }
-  }
-
-  Future<void> openSpeechLanguageSettings() async {
-    const channel = MethodChannel('com.asha.triage/settings');
-    try {
-      await channel.invokeMethod('openSpeechSettings');
-    } on PlatformException catch (e) {
-      debugPrint('Failed to open speech settings: $e');
-    }
-  }
-
-  Future<void> openLanguageSettings() async {
-    const channel = MethodChannel('com.asha.triage/settings');
-    try {
-      await channel.invokeMethod('openLanguageSettings');
-    } on PlatformException catch (e) {
-      debugPrint('[STT] Failed to open language settings: $e');
-    }
-  }
-
-  Future<void> openInputMethodSettings() async {
-    const channel = MethodChannel('com.asha.triage/settings');
-    try {
-      await channel.invokeMethod('openInputMethodSettings');
-    } on PlatformException catch (e) {
-      debugPrint('[STT] Failed to open input method settings: $e');
-    }
-  }
-
-  Future<void> openGoogleOfflineSpeechSettings() async {
-    const platform = MethodChannel('com.asha.triage/settings');
-    try {
-      await platform.invokeMethod('openGoogleOfflineSpeech');
-    } catch (e) {
-      debugPrint('[STT] Could not open settings: $e');
-    }
-  }
-
-  Future<String?> _resolveLocale(String requested) async {
-    final systemLocales = await _speech.locales();
-    final ids = systemLocales.map((l) => l.localeId).toSet();
-
-    if (ids.contains(requested)) {
-      debugPrint('[STT ACTIVE LOCALE] Using requested locale: $requested');
-      return requested;
-    }
-
-    final swapped = requested.contains('_') ? requested.replaceAll('_', '-') : requested.replaceAll('-', '_');
-    if (ids.contains(swapped)) {
-      return swapped;
-    }
-
-    final langOnly = requested.split(RegExp(r'[-_]')).first;
-    for (var id in ids) {
-      if (id == langOnly || id.startsWith('${langOnly}_') || id.startsWith('$langOnly-')) {
-        return id;
-      }
-    }
-
-    // Always try the requested one directly even if not listed
-    return requested;
-  }
+  // ---------------------------------------------------------------------------
+  // Listening lifecycle
+  // ---------------------------------------------------------------------------
 
   Future<void> startListening({
-    String locale = 'hi_IN',
+    String locale = 'hi-IN',
     Function(String)? onError,
     void Function(String activeLocale)? onLocaleResolved,
   }) async {
-    if (!_isInitialized) {
-      await initialize();
-    }
-    if (_isListening || !_isInitialized) return;
-
-    _currentOnError = onError;
-    debugPrint('================================');
-    debugPrint('[STT DEBUG] Starting listen for locale: $locale');
-    debugPrint('================================');
-
-    // Prompt 4 & 5: verify hasDictation, apply fallback
-    final activeLocale = await _resolveLocale(locale);
-    if (activeLocale == null) {
-      debugPrint('[STT] offline_pack_missing — no valid locale for $locale');
-      if (onError != null) {
-        final isMarathi = locale.contains('mr');
-        onError(isMarathi
-            ? 'मराठी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।'
-            : 'हिंदी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।');
-      }
+    if (_isStarting) {
+      debugPrint('[VOSK] startListening already in progress, skipping.');
       return;
     }
+    _isStarting = true;
+    _currentOnError = onError;
 
-    _isListening = true;
-    isListeningNotifier.value = true;
-    _currentLocale = activeLocale;
+    // Prompt 9: reset noise suppressor so each session re-calibrates.
+    _noiseSuppressor.reset();
+    isCalibratedNotifier.value = false;
 
-    // Notify caller of the actual locale used (so TriageProvider can update)
-    onLocaleResolved?.call(activeLocale);
+    try {
+      await initialize(locale: locale);
 
-    await _speech.listen(
-      onResult: (val) {
-        debugPrint('[STT DEBUG RESULT]: ${val.recognizedWords}');
-        debugPrint('[STT DEBUG FINAL RESULT?]: ${val.finalResult}');
-        if (val.recognizedWords.isNotEmpty) {
-          pushTranscript(val.recognizedWords);
+      if (!_isInitialized || _activeModel == null) {
+        debugPrint('[VOSK] Not initialized, aborting startListening.');
+        return;
+      }
+
+      if (_isListening) {
+        debugPrint('[VOSK] Already listening — stopping before restart.');
+        await stopListening();
+      }
+
+      await _cleanupRecognizer();
+
+      debugPrint(
+          '[VOSK] Starting listener for locale: $locale (model: $_activeLocale)');
+
+      // Create Vosk recognizer — bytes are fed manually via AudioRecorder stream.
+      _recognizer = await _vosk.createRecognizer(
+        model: _activeModel!,
+        sampleRate: 16000,
+      );
+
+      onLocaleResolved?.call(_activeLocale ?? 'hi-IN');
+
+      // Start raw PCM stream.
+      final audioStream = await startAudioCapture();
+
+      _audioStreamSubscription = audioStream.listen((rawBytes) async {
+        if (_recognizer == null) return;
+        // Drop this chunk if Vosk is still processing the previous one.
+        if (_processingChunk) return;
+        _processingChunk = true;
+
+        // Pipe through noise suppressor (speech frames pass unchanged).
+        final Uint8List cleanedBytes = _noiseSuppressor.process(rawBytes);
+
+        // Update calibration banner.
+        if (_noiseSuppressor.isCalibrated && !isCalibratedNotifier.value) {
+          isCalibratedNotifier.value = true;
         }
-      },
-      onDevice: true,
-      listenMode: stt.ListenMode.dictation,
-      localeId: activeLocale,
-      cancelOnError: false,
-      partialResults: true,
-    );
+
+        try {
+          final bool isFinal =
+              await _recognizer!.acceptWaveformBytes(cleanedBytes);
+
+          if (isFinal) {
+            final text = parseFinal(await _recognizer!.getFinalResult());
+            if (text.isNotEmpty) pushTranscript(text);
+          } else {
+            final partial =
+                parsePartial(await _recognizer!.getPartialResult());
+            if (partial.isNotEmpty) pushTranscript(partial);
+          }
+        } catch (e) {
+          debugPrint('[VOSK] chunk processing error: $e');
+        } finally {
+          _processingChunk = false;
+        }
+      }, onError: (e) {
+        debugPrint('[VOSK] Audio stream error: $e');
+        onError?.call('Audio stream error: $e');
+      });
+
+      _isListening = true;
+      isListeningNotifier.value = true;
+      debugPrint('[VOSK] Listening started (noise-suppressed PCM feed mode).');
+    } catch (e) {
+      debugPrint('[VOSK] startListening failed: $e');
+      onError?.call('Failed to start microphone: $e');
+      _isListening = false;
+      isListeningNotifier.value = false;
+      await _cleanupRecognizer();
+    } finally {
+      _isStarting = false;
+    }
   }
 
   Future<String> stopListening() async {
+    if (!_isListening) return '';
+
     _isListening = false;
     isListeningNotifier.value = false;
-    debugPrint('[STT] Stopped listening');
-    await _speech.stop();
+    debugPrint('[VOSK] Stopping listener...');
+
+    // Flush remaining audio.
+    try {
+      if (_recognizer != null) {
+        final text = parseFinal(await _recognizer!.getFinalResult());
+        if (text.isNotEmpty) pushTranscript(text);
+      }
+    } catch (_) {}
+
+    await _cleanupRecognizer();
+    isCalibratedNotifier.value = false;
     return '';
   }
 
+  // ---------------------------------------------------------------------------
+  // Audio capture
+  // ---------------------------------------------------------------------------
+
+  /// Starts the [AudioRecorder] with PCM-16 mono at 16 kHz / 256 kbps and
+  /// returns the raw [Uint8List] byte stream.
+  Future<Stream<Uint8List>> startAudioCapture() async {
+    debugPrint('[AUDIO] Starting audio capture...');
+    const config = RecordConfig(
+      encoder: AudioEncoder.pcm16bits,
+      sampleRate: 16000,
+      numChannels: 1,
+      bitRate: 256000,
+    );
+    final stream = await _audioRecorder.startStream(config);
+    debugPrint('[AUDIO] Audio capture started (PCM-16, 16 kHz, mono, 256 kbps).');
+    return stream;
+  }
+
+  /// Stops the [AudioRecorder] and cancels any active stream subscription.
+  Future<void> stopAudioCapture() async {
+    debugPrint('[AUDIO] Stopping audio capture...');
+    await _cancelAudioStream();
+    debugPrint('[AUDIO] Audio capture stopped.');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Result parsing — Prompt 7
+  // ---------------------------------------------------------------------------
+
+  /// Extracts the `partial` field from a Vosk partial-result JSON string.
+  /// Returns an empty string if the key is missing or blank.
+  String parsePartial(String json) {
+    try {
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      return (decoded['partial'] as String? ?? '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Extracts the `text` field from a Vosk final-result JSON string.
+  /// Returns an empty string if the key is missing or blank.
+  String parseFinal(String json) {
+    try {
+      final decoded = jsonDecode(json) as Map<String, dynamic>;
+      return (decoded['text'] as String? ?? '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Transcript
+  // ---------------------------------------------------------------------------
+
   void pushTranscript(String text) {
-    _transcriptController.add(text);
+    if (!_transcriptController.isClosed) {
+      _transcriptController.add(text);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cleanup
+  // ---------------------------------------------------------------------------
+
+  Future<void> _cleanupRecognizer() async {
+    if (_recognizer == null && !(await _audioRecorder.isRecording())) return;
+
+    debugPrint('[VOSK] Cleaning up recognizer and audio recorder...');
+    await _cancelAudioStream();
+
+    try {
+      await _recognizer?.dispose();
+    } catch (e) {
+      debugPrint('[VOSK] recognizer.dispose() error (ignored): $e');
+    }
+    _recognizer = null;
+    _processingChunk = false;
+
+    debugPrint('[VOSK] Cleanup complete.');
+  }
+
+  /// Internal helper — cancels the subscription and stops the recorder.
+  Future<void> _cancelAudioStream() async {
+    try {
+      await _audioStreamSubscription?.cancel();
+    } catch (e) {
+      debugPrint('[AUDIO] subscription cancel error (ignored): $e');
+    }
+    _audioStreamSubscription = null;
+
+    try {
+      await _audioRecorder.stop();
+    } catch (e) {
+      debugPrint('[AUDIO] audioRecorder.stop() error (ignored): $e');
+    }
   }
 
   void dispose() {
     _transcriptController.close();
+    _audioRecorder.dispose();
+    _recognizer?.dispose();
+    isCalibratedNotifier.dispose();
+    for (final model in _loadedModels.values) {
+      model.dispose();
+    }
+    _loadedModels.clear();
   }
 }

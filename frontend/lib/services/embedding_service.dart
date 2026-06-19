@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
@@ -45,9 +47,29 @@ class EmbeddingService {
       final token = lines[i].trim();
       if (token.isNotEmpty) _vocab[token] = i;
     }
+
+    // ── Vocab diagnostic ─────────────────────────────────────────────────────
+    // Expected: ~119547 tokens; index 101 = [CLS]; index 102 = [SEP]
+    final tokenAt101 = lines.length > 101 ? lines[101].trim() : '<OUT_OF_RANGE>';
+    final tokenAt102 = lines.length > 102 ? lines[102].trim() : '<OUT_OF_RANGE>';
+    debugPrint('[EmbeddingService] VOCAB SIZE: ${_vocab.length}');
+    debugPrint('[EmbeddingService] Token at index 101 (expect [CLS]): "$tokenAt101"');
+    debugPrint('[EmbeddingService] Token at index 102 (expect [SEP]): "$tokenAt102"');
+    if (_vocab.isEmpty) {
+      debugPrint('[EmbeddingService] ERROR: vocab is empty — encoding problem in vocab.txt');
+    } else if (tokenAt101 != '[CLS]' || tokenAt102 != '[SEP]') {
+      debugPrint('[EmbeddingService] WARNING: special tokens not at expected indices — '
+          'tokenization will produce wrong [CLS]/[SEP] IDs');
+    } else {
+      debugPrint('[EmbeddingService] Vocab OK — special tokens verified');
+    }
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
+
+  /// Set to true after the first successful inference so embedding diagnostics
+  /// are only printed once (avoids log spam on every token).
+  bool _embeddingDiagnosticDone = false;
 
   /// Returns a 384-dimensional L2-normalised embedding for [text].
   ///
@@ -96,8 +118,34 @@ class EmbeddingService {
       {outputIdx: outputBuffer},
     );
 
+    final embedding = outputBuffer[0];
+
+    // ── One-shot inference diagnostic ─────────────────────────────────────────
+    // Fires only on the first call. L2 norm ≈ 1.0 → model output is correctly
+    // L2-normalised. Norm = 0.0 → all zeros (wrong output tensor index).
+    // Norm >> 1 → raw hidden states, not the sentence embedding head.
+    if (!_embeddingDiagnosticDone) {
+      _embeddingDiagnosticDone = true;
+      double sumSq = 0.0;
+      for (final v in embedding) sumSq += v * v;
+      final l2Norm = math.sqrt(sumSq);
+      final first5 = embedding.take(5).map((v) => v.toStringAsFixed(6)).join(', ');
+      debugPrint('[EmbeddingService] EMBEDDING SAMPLE (first 5): [$first5]');
+      debugPrint('[EmbeddingService] EMBEDDING L2 NORM: ${l2Norm.toStringAsFixed(6)}');
+      if (l2Norm < 0.01) {
+        debugPrint('[EmbeddingService] ERROR: norm ≈ 0 — output tensor index is wrong '
+            '(all zeros). Check outputIdx and interpreter.getOutputTensors().');
+      } else if (l2Norm > 1.5) {
+        debugPrint('[EmbeddingService] WARNING: norm = ${l2Norm.toStringAsFixed(3)} '
+            '(>> 1) — raw hidden states returned, not the pooled embedding head. '
+            'Update outputIdx to match the sentence_embedding output from convert_model.py.');
+      } else {
+        debugPrint('[EmbeddingService] Embedding OK — norm is close to 1.0');
+      }
+    }
+
     // Return the inner 384-element list (unwrap the batch dimension)
-    return outputBuffer[0];
+    return embedding;
   }
 
   void dispose() => _interpreter.close();
