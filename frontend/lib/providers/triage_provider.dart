@@ -3,6 +3,7 @@ import '../models/session_model.dart';
 import '../models/triage_result.dart';
 import '../models/detected_concept.dart';
 import '../services/database_service.dart';
+import '../services/embedding_service.dart';
 import '../services/triage_engine.dart';
 import '../utils/app_strings.dart';
 
@@ -13,6 +14,10 @@ class TriageProvider extends ChangeNotifier {
   bool _isRecording = false;
   bool _isProcessing = false;
   String _selectedLanguage = 'hi';
+
+  /// True once [EmbeddingService] and [TriageEngine] have finished loading.
+  /// The home screen blocks on this flag before showing any triage UI.
+  bool _servicesReady = false;
 
   
   // Dynamic Confirmation state
@@ -29,6 +34,27 @@ class TriageProvider extends ChangeNotifier {
   List<bool?>   get confirmationAnswers => _confirmationAnswers;
   String        get selectedLanguage  => _selectedLanguage;
   List<DetectedConcept> get detectedConcepts => _detectedConcepts;
+  bool          get servicesReady     => _servicesReady;
+
+  // ── Background model initialisation ──────────────────────────────────────
+
+  /// Called from [_AppBootstrap.initState] after the first frame is rendered.
+  /// Awaits [EmbeddingService] then [TriageEngine] so the splash screen is
+  /// shown while models load. Sets [servicesReady] = true when both are done.
+  Future<void> initializeServices() async {
+    try {
+      await EmbeddingService.instance.initialize();
+      await TriageEngine.instance.initialize();
+    } catch (e, st) {
+      debugPrint('[TriageProvider] initializeServices ERROR: $e\n$st');
+      // Still mark ready so the app does not hang on the splash indefinitely.
+      // The triage engine will throw a StateError if called before init,
+      // which will surface as an empty result rather than a crash.
+    }
+    _servicesReady = true;
+    notifyListeners();
+  }
+
 
   void setLanguage(String lang) {
     _selectedLanguage = lang;
