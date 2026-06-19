@@ -373,10 +373,10 @@ class TriageEngine {
     }
 
     // ── 6. Sort: RED > YELLOW > GREEN, then by similarity descending ──────────
-    const _categoryOrder = {'RED': 0, 'YELLOW': 1, 'GREEN': 2};
+    const categoryOrder = {'RED': 0, 'YELLOW': 1, 'GREEN': 2};
     detected.sort((a, b) {
-      final catCmp = (_categoryOrder[a.category] ?? 3)
-          .compareTo(_categoryOrder[b.category] ?? 3);
+      final catCmp = (categoryOrder[a.category] ?? 3)
+          .compareTo(categoryOrder[b.category] ?? 3);
       if (catCmp != 0) return catCmp;
       return b.similarity.compareTo(a.similarity); // within band: highest first
     });
@@ -494,12 +494,4 @@ class TriageEngine {
     );
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-
-  /// Generates a random 6-digit alphanumeric session code (uppercase + digits).
-  String _generateSessionCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rng   = math.Random();
-    return List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
-  }
 }

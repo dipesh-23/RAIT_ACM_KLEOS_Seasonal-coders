@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../app_theme.dart';
 import '../providers/triage_provider.dart';
-import '../services/triage_engine.dart';
+import '../utils/app_strings.dart';
 import 'result_screen.dart';
 
 class ConfirmationScreen extends StatefulWidget {
@@ -60,6 +60,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
     final total = provider.confirmationQuestions.length;
     final current = provider.confirmationStep;
     final progress = (current + 1) / total;
+    final lang = provider.selectedLanguage;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
@@ -87,7 +88,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                         ),
                       ),
                       const Spacer(),
-                      Text('प्रश्न ${current + 1}/$total',
+                      Text('${AppStrings.get('question_prefix', lang)} ${current + 1}/$total',
                           style: GoogleFonts.poppins(
                               color: AppTheme.primary, fontSize: 14,
                               fontWeight: FontWeight.w700)),
@@ -143,7 +144,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
 
                       const SizedBox(height: 12),
 
-                      Text('इसमें ध्यान दें और सही विकल्प चुनें',
+                      Text(AppStrings.get('pay_attention', lang),
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                               color: AppTheme.textLight, fontSize: 13)),
@@ -172,7 +173,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                               const Icon(Icons.check_rounded,
                                   color: Colors.white, size: 22),
                               const SizedBox(width: 10),
-                              Text('हाँ, गंभीर है',
+                              Text(AppStrings.get('yes_severe', lang),
                                   style: GoogleFonts.poppins(
                                       color: Colors.white, fontSize: 17,
                                       fontWeight: FontWeight.w700)),
@@ -202,7 +203,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                               Icon(Icons.close_rounded,
                                   color: AppTheme.textMedium, size: 22),
                               const SizedBox(width: 10),
-                              Text('नहीं, सामान्य है',
+                              Text(AppStrings.get('no_normal', lang),
                                   style: GoogleFonts.poppins(
                                       color: AppTheme.textMedium, fontSize: 17,
                                       fontWeight: FontWeight.w600)),

@@ -5,6 +5,7 @@ import '../app_theme.dart';
 import '../models/triage_result.dart';
 import '../providers/triage_provider.dart';
 import '../services/tts_service.dart';
+import '../utils/app_strings.dart';
 import 'referral_screen.dart';
 import 'session_start_screen.dart';
 
@@ -30,8 +31,10 @@ class _ResultScreenState extends State<ResultScreen>
 
     // Auto-play TTS
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final result = context.read<TriageProvider>().currentResult;
-      if (result != null) TtsService.instance.playTriageResult(result.category);
+      final provider = context.read<TriageProvider>();
+      final result = provider.currentResult;
+      final lang = provider.selectedLanguage;
+      if (result != null) TtsService.instance.playTriageResult(result.category, lang);
     });
   }
 
@@ -77,6 +80,7 @@ class _ResultScreenState extends State<ResultScreen>
     final cat = result.category;
     final color = _categoryColor(cat);
     final gradient = _categoryGradient(cat);
+    final lang = provider.selectedLanguage;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
@@ -103,12 +107,12 @@ class _ResultScreenState extends State<ResultScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(result.categoryLabel,
+                  Text(result.categoryLabelForLang(lang),
                       style: GoogleFonts.poppins(
                           color: Colors.white, fontSize: 26,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-                  Text(result.recommendationHindi,
+                  Text(result.getRecommendationForLang(lang),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
                           color: Colors.white.withOpacity(0.9), fontSize: 14,
@@ -124,7 +128,7 @@ class _ResultScreenState extends State<ResultScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── What Was Said ──
-                    AppTheme.sectionTitle('ट्रांसक्रिप्शन'),
+                    AppTheme.sectionTitle(AppStrings.get('transcription_title', lang)),
                     const SizedBox(height: 10),
                     Container(
                       width: double.infinity,
@@ -143,7 +147,7 @@ class _ResultScreenState extends State<ResultScreen>
                     const SizedBox(height: 20),
 
                     // ── Matched Symptoms ──
-                    AppTheme.sectionTitle('पहचाने गए लक्षण'),
+                    AppTheme.sectionTitle(AppStrings.get('detected_symptoms', lang)),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8, runSpacing: 8,
@@ -182,12 +186,12 @@ class _ResultScreenState extends State<ResultScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('ASHA सलाह',
+                                Text(AppStrings.get('asha_advice', lang),
                                     style: GoogleFonts.poppins(
                                         color: color, fontSize: 13,
                                         fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 4),
-                                Text(result.recommendationHindi,
+                                Text(result.getRecommendationForLang(lang),
                                     style: GoogleFonts.poppins(
                                         color: AppTheme.textDark, fontSize: 13,
                                         height: 1.5)),
@@ -203,10 +207,10 @@ class _ResultScreenState extends State<ResultScreen>
                     // ── TTS Replay ──
                     OutlinedButton.icon(
                       onPressed: () =>
-                          TtsService.instance.playTriageResult(cat),
+                          TtsService.instance.playTriageResult(cat, lang),
                       icon: Icon(Icons.volume_up_rounded,
                           color: AppTheme.primary, size: 20),
-                      label: Text('आवाज में सुनें',
+                      label: Text(AppStrings.get('listen_audio', lang),
                           style: GoogleFonts.poppins(
                               color: AppTheme.primary, fontSize: 14,
                               fontWeight: FontWeight.w600)),
@@ -221,7 +225,7 @@ class _ResultScreenState extends State<ResultScreen>
 
                     if (result.requiresReferral)
                       AppTheme.gradientButton(
-                        label: 'रेफरल स्लिप बनाएं',
+                        label: AppStrings.get('create_referral_slip', lang),
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const ReferralScreen())),
                         gradient: AppTheme.redGradient,
@@ -231,7 +235,7 @@ class _ResultScreenState extends State<ResultScreen>
                     const SizedBox(height: 12),
 
                     AppTheme.gradientButton(
-                      label: 'नया मरीज →',
+                      label: AppStrings.get('new_patient', lang),
                       onTap: () {
                         context.read<TriageProvider>().reset();
                         Navigator.of(context).pushAndRemoveUntil(

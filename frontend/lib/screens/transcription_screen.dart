@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../app_theme.dart';
 import '../providers/triage_provider.dart';
+import '../utils/app_strings.dart';
 import 'confirmation_screen.dart';
 import 'voice_screen.dart';
 
@@ -13,6 +14,7 @@ class TranscriptionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<TriageProvider>();
     final text = provider.transcribedText;
+    final lang = provider.selectedLanguage;
 
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
@@ -27,7 +29,7 @@ class TranscriptionScreen extends StatelessWidget {
                 children: [
                   Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 26),
                   const SizedBox(width: 12),
-                  Expanded(child: Text('ASHA ट्राइएज',
+                  Expanded(child: Text(AppStrings.get('asha_triage', lang),
                       style: GoogleFonts.poppins(
                           fontSize: 18, fontWeight: FontWeight.w700,
                           color: AppTheme.textDark))),
@@ -50,12 +52,12 @@ class TranscriptionScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Subtitle ──
-                    Text('यह सुना गया:',
+                    Text(AppStrings.get('heard_label', lang),
                         style: GoogleFonts.poppins(
                             color: AppTheme.textMedium, fontSize: 13,
                             fontWeight: FontWeight.w500)),
                     const SizedBox(height: 4),
-                    Text('इसमें पेशेंट के लिए विकल्प की जाँच करो!',
+                    Text(AppStrings.get('check_patient_options', lang),
                         style: GoogleFonts.poppins(
                             color: AppTheme.textLight, fontSize: 12)),
 
@@ -88,7 +90,7 @@ class TranscriptionScreen extends StatelessWidget {
                                     color: AppTheme.primary, size: 20),
                               ),
                               const SizedBox(width: 10),
-                              Text('ऑडियो ट्रांसक्रिप्शन',
+                              Text(AppStrings.get('audio_transcription', lang),
                                   style: GoogleFonts.poppins(
                                       color: AppTheme.primary, fontSize: 13,
                                       fontWeight: FontWeight.w600)),
@@ -114,7 +116,7 @@ class TranscriptionScreen extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // ── Detected Symptoms ──
-                    Text('पहचाने गए लक्षण',
+                    Text(AppStrings.get('detected_symptoms', lang),
                         style: GoogleFonts.poppins(
                             color: AppTheme.textDark, fontSize: 14,
                             fontWeight: FontWeight.w700)),
@@ -145,7 +147,7 @@ class TranscriptionScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('AI विश्वास स्कोर',
+                              Text(AppStrings.get('ai_confidence_score', lang),
                                   style: GoogleFonts.poppins(
                                       color: AppTheme.textDark, fontSize: 13,
                                       fontWeight: FontWeight.w600)),
@@ -174,7 +176,7 @@ class TranscriptionScreen extends StatelessWidget {
 
                     // ── Question ──
                     Center(
-                      child: Text('क्या यह सही है?',
+                      child: Text(AppStrings.get('is_this_correct', lang),
                           style: GoogleFonts.poppins(
                               color: AppTheme.textDark, fontSize: 16,
                               fontWeight: FontWeight.w700)),
@@ -190,7 +192,7 @@ class TranscriptionScreen extends StatelessWidget {
                                 .pushReplacement(MaterialPageRoute(
                                     builder: (_) => const VoiceScreen())),
                             icon: const Icon(Icons.refresh_rounded, size: 18),
-                            label: Text('दोबारा बोलें',
+                            label: Text(AppStrings.get('rerecord', lang),
                                 style: GoogleFonts.poppins(
                                     fontSize: 14, fontWeight: FontWeight.w600)),
                             style: OutlinedButton.styleFrom(
@@ -212,7 +214,7 @@ class TranscriptionScreen extends StatelessWidget {
                               );
                             },
                             icon: const Icon(Icons.check_rounded, size: 18),
-                            label: Text('हाँ, आगे बढ़ें',
+                            label: Text(AppStrings.get('correct_continue', lang),
                                 style: GoogleFonts.poppins(
                                     fontSize: 14, fontWeight: FontWeight.w600)),
                             style: ElevatedButton.styleFrom(
