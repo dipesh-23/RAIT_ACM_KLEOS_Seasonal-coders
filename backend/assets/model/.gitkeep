@@ -1,0 +1,2 @@
+# Add manually:
+# - minilm.tflite  (optional — backend uses sentence-transformers by default)

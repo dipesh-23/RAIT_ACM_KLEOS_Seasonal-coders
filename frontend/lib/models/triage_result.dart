@@ -1,97 +1,72 @@
-enum TriageLevel { red, yellow, green }
+import 'package:uuid/uuid.dart';
 
-class DetectedConcept {
-  final String conceptKey;
-  final String hindiQuestion;
-  final String category;
-  final double similarityScore;
-  final double weight;
-  bool confirmed;
-
-  DetectedConcept({
-    required this.conceptKey,
-    required this.hindiQuestion,
-    required this.category,
-    required this.similarityScore,
-    required this.weight,
-    this.confirmed = false,
-  });
-
-  DetectedConcept copyWith({
-    String? conceptKey,
-    String? hindiQuestion,
-    String? category,
-    double? similarityScore,
-    double? weight,
-    bool? confirmed,
-  }) {
-    return DetectedConcept(
-      conceptKey: conceptKey ?? this.conceptKey,
-      hindiQuestion: hindiQuestion ?? this.hindiQuestion,
-      category: category ?? this.category,
-      similarityScore: similarityScore ?? this.similarityScore,
-      weight: weight ?? this.weight,
-      confirmed: confirmed ?? this.confirmed,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'conceptKey': conceptKey,
-      'hindiQuestion': hindiQuestion,
-      'category': category,
-      'similarityScore': similarityScore,
-      'weight': weight,
-      'confirmed': confirmed,
-    };
-  }
-
-  factory DetectedConcept.fromMap(Map<String, dynamic> map) {
-    return DetectedConcept(
-      conceptKey: map['conceptKey'] as String,
-      hindiQuestion: map['hindiQuestion'] as String,
-      category: map['category'] as String,
-      similarityScore: (map['similarityScore'] as num).toDouble(),
-      weight: (map['weight'] as num).toDouble(),
-      confirmed: map['confirmed'] as bool? ?? false,
-    );
-  }
-}
+enum TriageCategory { red, yellow, green }
 
 class TriageResult {
-  final TriageLevel level;
-  final List<DetectedConcept> confirmedConcepts;
-  final String hindiReason;
-  final String sessionCode;
-  final DateTime timestamp;
+  final String id;
+  final String sessionId;
+  final TriageCategory category;
+  final String transcribedText;
+  final double confidenceScore;
+  final List<String> matchedSymptoms;
+  final String recommendation;
+  final String recommendationHindi;
+  final DateTime createdAt;
+  final bool requiresReferral;
 
   TriageResult({
-    required this.level,
-    required this.confirmedConcepts,
-    required this.hindiReason,
-    required this.sessionCode,
-    required this.timestamp,
-  });
+    String? id,
+    required this.sessionId,
+    required this.category,
+    required this.transcribedText,
+    required this.confidenceScore,
+    required this.matchedSymptoms,
+    required this.recommendation,
+    required this.recommendationHindi,
+    DateTime? createdAt,
+    this.requiresReferral = false,
+  })  : id = id ?? const Uuid().v4(),
+        createdAt = createdAt ?? DateTime.now();
 
-  String get levelString {
-    switch (level) {
-      case TriageLevel.red:
-        return 'RED';
-      case TriageLevel.yellow:
-        return 'YELLOW';
-      case TriageLevel.green:
-        return 'GREEN';
+  String get categoryLabel {
+    switch (category) {
+      case TriageCategory.red:    return 'गंभीर (Red)';
+      case TriageCategory.yellow: return 'सतर्क (Yellow)';
+      case TriageCategory.green:  return 'सामान्य (Green)';
     }
   }
 
-  String get levelHindi {
-    switch (level) {
-      case TriageLevel.red:
-        return 'तुरंत रेफर करें';
-      case TriageLevel.yellow:
-        return 'आज रेफर करें';
-      case TriageLevel.green:
-        return 'स्थानीय उपचार';
+  String get audioFile {
+    switch (category) {
+      case TriageCategory.red:    return 'assets/audio/red_hindi.mp3';
+      case TriageCategory.yellow: return 'assets/audio/yellow_hindi.mp3';
+      case TriageCategory.green:  return 'assets/audio/green_hindi.mp3';
     }
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'session_id': sessionId,
+    'category': category.name,
+    'transcribed_text': transcribedText,
+    'confidence_score': confidenceScore,
+    'matched_symptoms': matchedSymptoms.join('|'),
+    'recommendation': recommendation,
+    'recommendation_hindi': recommendationHindi,
+    'created_at': createdAt.toIso8601String(),
+    'requires_referral': requiresReferral ? 1 : 0,
+  };
+
+  factory TriageResult.fromMap(Map<String, dynamic> map) => TriageResult(
+    id: map['id'],
+    sessionId: map['session_id'],
+    category: TriageCategory.values.firstWhere((e) => e.name == map['category']),
+    transcribedText: map['transcribed_text'],
+    confidenceScore: map['confidence_score'],
+    matchedSymptoms: (map['matched_symptoms'] as String).split('|'),
+    recommendation: map['recommendation'],
+    recommendationHindi: map['recommendation_hindi'],
+    createdAt: DateTime.parse(map['created_at']),
+    requiresReferral: map['requires_referral'] == 1,
+  );
 }

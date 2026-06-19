@@ -1,96 +1,88 @@
+import 'package:uuid/uuid.dart';
+
+enum AgeGroup { child, youth, adult, elderly }
+enum SymptomDuration { today, twothreedays, fourplus }
+
+extension AgeGroupLabel on AgeGroup {
+  String get hindi {
+    switch (this) {
+      case AgeGroup.child:   return 'बच्चा';
+      case AgeGroup.youth:   return 'युवा';
+      case AgeGroup.adult:   return 'वयस्क';
+      case AgeGroup.elderly: return 'बुजुर्ग';
+    }
+  }
+}
+
+extension SymptomDurationLabel on SymptomDuration {
+  String get hindi {
+    switch (this) {
+      case SymptomDuration.today:        return 'आज';
+      case SymptomDuration.twothreedays: return '2-3 दिन';
+      case SymptomDuration.fourplus:     return '4+ दिन';
+    }
+  }
+}
+
 class SessionModel {
-  final int? id;
-  final String sessionCode;
-  final String workerName;
-  final String ageGroup;
-  final String duration;
-  final String rawTranscription;
-  final String confirmedConcepts;
-  final String triageLevel;
-  final String timestamp;
-  final int referralGenerated;
+  final String id;
+  final String ashaWorkerName;
+  final AgeGroup? patientAgeGroup;
+  final SymptomDuration? symptomDuration;
+  final String? transcribedText;
+  final DateTime startedAt;
+  final bool isCompleted;
 
   SessionModel({
-    this.id,
-    required this.sessionCode,
-    required this.workerName,
-    required this.ageGroup,
-    required this.duration,
-    required this.rawTranscription,
-    required this.confirmedConcepts,
-    required this.triageLevel,
-    required this.timestamp,
-    this.referralGenerated = 0,
-  });
+    String? id,
+    required this.ashaWorkerName,
+    this.patientAgeGroup,
+    this.symptomDuration,
+    this.transcribedText,
+    DateTime? startedAt,
+    this.isCompleted = false,
+  })  : id = id ?? const Uuid().v4(),
+        startedAt = startedAt ?? DateTime.now();
 
-  Map<String, dynamic> toMap() {
-    return {
-      if (id != null) 'id': id,
-      'session_code': sessionCode,
-      'worker_name': workerName,
-      'patient_age_group': ageGroup,
-      'symptom_duration': duration,
-      'raw_transcription': rawTranscription,
-      'confirmed_concepts': confirmedConcepts,
-      'triage_level': triageLevel,
-      'timestamp': timestamp,
-      'referral_generated': referralGenerated,
-    };
-  }
-
-  factory SessionModel.fromMap(Map<String, dynamic> map) {
+  SessionModel copyWith({
+    String? ashaWorkerName,
+    AgeGroup? patientAgeGroup,
+    SymptomDuration? symptomDuration,
+    String? transcribedText,
+    bool? isCompleted,
+  }) {
     return SessionModel(
-      id: map['id'] as int?,
-      sessionCode: map['session_code'] as String,
-      workerName: map['worker_name'] as String? ?? '',
-      ageGroup: map['patient_age_group'] as String? ?? '',
-      duration: map['symptom_duration'] as String? ?? '',
-      rawTranscription: map['raw_transcription'] as String? ?? '',
-      confirmedConcepts: map['confirmed_concepts'] as String? ?? '[]',
-      triageLevel: map['triage_level'] as String? ?? '',
-      timestamp: map['timestamp'] as String? ?? '',
-      referralGenerated: map['referral_generated'] as int? ?? 0,
+      id: id,
+      ashaWorkerName: ashaWorkerName ?? this.ashaWorkerName,
+      patientAgeGroup: patientAgeGroup ?? this.patientAgeGroup,
+      symptomDuration: symptomDuration ?? this.symptomDuration,
+      transcribedText: transcribedText ?? this.transcribedText,
+      startedAt: startedAt,
+      isCompleted: isCompleted ?? this.isCompleted,
     );
   }
 
-  String get ageGroupHindi {
-    switch (ageGroup) {
-      case 'NEWBORN':
-        return 'नवजात (0-28 दिन)';
-      case 'CHILD':
-        return 'बच्चा (1 माह - 12 वर्ष)';
-      case 'ADULT':
-        return 'वयस्क (13-60 वर्ष)';
-      case 'ELDERLY':
-        return 'बुजुर्ग (60+ वर्ष)';
-      default:
-        return ageGroup;
-    }
-  }
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'asha_worker_name': ashaWorkerName,
+    'patient_age_group': patientAgeGroup?.name,
+    'symptom_duration': symptomDuration?.name,
+    'transcribed_text': transcribedText,
+    'started_at': startedAt.toIso8601String(),
+    'is_completed': isCompleted ? 1 : 0,
+  };
 
-  String get durationHindi {
-    switch (duration) {
-      case 'TODAY':
-        return 'आज';
-      case 'TWO_THREE_DAYS':
-        return '2-3 दिन';
-      case 'FOUR_PLUS_DAYS':
-        return '4+ दिन';
-      default:
-        return duration;
-    }
-  }
-
-  String get triageLevelHindi {
-    switch (triageLevel) {
-      case 'RED':
-        return '🔴 तुरंत रेफर करें';
-      case 'YELLOW':
-        return '🟡 आज रेफर करें';
-      case 'GREEN':
-        return '🟢 स्थानीय उपचार';
-      default:
-        return triageLevel;
-    }
-  }
+  factory SessionModel.fromMap(Map<String, dynamic> map) => SessionModel(
+    id: map['id'],
+    ashaWorkerName: map['asha_worker_name'],
+    patientAgeGroup: map['patient_age_group'] != null
+        ? AgeGroup.values.firstWhere((e) => e.name == map['patient_age_group'])
+        : null,
+    symptomDuration: map['symptom_duration'] != null
+        ? SymptomDuration.values.firstWhere((e) => e.name == map['symptom_duration'])
+        : null,
+    transcribedText: map['transcribed_text'],
+    startedAt: DateTime.parse(map['started_at']),
+    isCompleted: map['is_completed'] == 1,
+  );
 }

@@ -1,61 +1,42 @@
-import 'package:speech_to_text/speech_to_text.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 
+/// STT Service stub — integrate with speech_to_text or Vosk for actual offline STT
 class SttService {
-  final SpeechToText _stt = SpeechToText();
-  bool _isInitialized = false;
+  static final SttService instance = SttService._();
+  SttService._();
 
-  bool get isListening => _stt.isListening;
+  bool _isListening = false;
+  final StreamController<String> _transcriptController =
+      StreamController<String>.broadcast();
+
+  Stream<String> get transcriptStream => _transcriptController.stream;
+  bool get isListening => _isListening;
 
   Future<bool> initialize() async {
-    if (_isInitialized) return true;
-    _isInitialized = await _stt.initialize(
-      onError: (error) {},
-      onStatus: (status) {},
-    );
-    return _isInitialized;
+    // In production: initialize Vosk or speech_to_text plugin
+    debugPrint('[STT] Service initialized');
+    return true;
   }
 
-  Future<void> startListening({
-    required String localeId,
-    required Function(String text) onResult,
-    required Function(String text) onPartialResult,
-    required Function(String error) onError,
-  }) async {
-    if (!_isInitialized) {
-      final ok = await initialize();
-      if (!ok) {
-        onError('STT initialization failed');
-        return;
-      }
-    }
-
-    await _stt.listen(
-      onResult: (result) {
-        if (result.finalResult) {
-          onResult(result.recognizedWords);
-        } else {
-          onPartialResult(result.recognizedWords);
-        }
-      },
-      localeId: localeId,
-      listenOptions: SpeechListenOptions(
-        cancelOnError: false,
-        partialResults: true,
-        listenMode: ListenMode.dictation,
-        onDevice: true,
-      ),
-      onSoundLevelChange: null,
-    );
+  Future<void> startListening({String locale = 'hi-IN'}) async {
+    if (_isListening) return;
+    _isListening = true;
+    debugPrint('[STT] Started listening...');
+    // TODO: Hook into speech_to_text or Vosk native bridge
   }
 
-  Future<void> stopListening() async {
-    if (_stt.isListening) {
-      await _stt.stop();
-    }
+  Future<String> stopListening() async {
+    _isListening = false;
+    debugPrint('[STT] Stopped listening');
+    return _transcriptController.hasListener ? '' : '';
   }
 
-  Future<List<LocaleName>> getAvailableLocales() async {
-    if (!_isInitialized) await initialize();
-    return _stt.locales();
+  void pushTranscript(String text) {
+    _transcriptController.add(text);
+  }
+
+  void dispose() {
+    _transcriptController.close();
   }
 }

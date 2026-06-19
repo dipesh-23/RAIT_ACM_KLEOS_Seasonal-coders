@@ -1,43 +1,30 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:speech_to_text/speech_to_text.dart';
-import 'package:flutter/services.dart';
 
 class OnboardingService {
-  static const String _onboardingKey = 'onboarding_complete';
-  static const MethodChannel _channel =
-      MethodChannel('com.asha.asha_triage/settings');
+  static const _keyOnboardingDone = 'onboarding_done';
+  static const _keyWorkerName     = 'worker_name';
+  static const _keyLanguage       = 'language';
 
-  Future<bool> isOnboardingComplete() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_onboardingKey) ?? false;
+  static OnboardingService? _instance;
+  static OnboardingService get instance => _instance ??= OnboardingService._();
+  OnboardingService._();
+
+  late SharedPreferences _prefs;
+
+  Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
   }
 
-  Future<void> markOnboardingComplete() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_onboardingKey, true);
+  bool get isOnboardingDone => _prefs.getBool(_keyOnboardingDone) ?? false;
+
+  Future<void> completeOnboarding(String workerName, {String language = 'hi'}) async {
+    await _prefs.setBool(_keyOnboardingDone, true);
+    await _prefs.setString(_keyWorkerName, workerName);
+    await _prefs.setString(_keyLanguage, language);
   }
 
-  Future<bool> isHindiLanguagePackAvailable() async {
-    try {
-      final stt = SpeechToText();
-      final available = await stt.initialize(onError: (_) {});
-      if (!available) return false;
-      final locales = await stt.locales();
-      return locales.any((l) =>
-          l.localeId.toLowerCase().contains('hi') ||
-          l.localeId.toLowerCase().contains('hi_in'));
-    } catch (_) {
-      return false;
-    }
-  }
+  String get workerName => _prefs.getString(_keyWorkerName) ?? 'ASHA कार्यकर्ता';
+  String get language   => _prefs.getString(_keyLanguage) ?? 'hi';
 
-  Future<void> openLanguageSettings() async {
-    try {
-      await _channel.invokeMethod('openLanguageSettings');
-    } on MissingPluginException {
-      // Platform channel not set up yet — silently ignore on non-Android
-    } catch (_) {
-      // Silently ignore any other errors
-    }
-  }
+  Future<void> reset() async => _prefs.clear();
 }

@@ -1,183 +1,196 @@
-import 'dart:math';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+/// Loads `minilm.tflite` and `vocab.txt` from assets, tokenises text
+/// using an on-device WordPiece implementation, and returns a
+/// 384-dimensional L2-normalised sentence embedding.
 class EmbeddingService {
-  static final EmbeddingService instance = EmbeddingService._internal();
-  EmbeddingService._internal();
+  // ── Singleton ────────────────────────────────────────────────────────────────
+  EmbeddingService._();
+  static final EmbeddingService instance = EmbeddingService._();
 
-  Interpreter? _interpreter;
-  Map<String, int> _vocab = {};
+  // ── Constants ───────────────────────────────────────────────────────────────
+  static const int _seqLen  = 128;
+  static const int _clsTokenId = 101;   // [CLS]
+  static const int _sepTokenId = 102;   // [SEP]
+  static const int _padTokenId = 0;     // [PAD]
+  static const int _unkTokenId = 100;   // [UNK]
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  late final Interpreter _interpreter;
+  late final Map<String, int> _vocab;   // token → id
   bool _isInitialized = false;
 
-  static const int _maxLength = 128;
-  static const int _embeddingDim = 384;
-
+  /// Whether [init] has completed successfully.
   bool get isInitialized => _isInitialized;
 
-  Future<void> initialize() async {
-    try {
-      await _loadVocab();
-      await _loadModel();
-      _isInitialized = true;
-    } catch (e) {
-      // Graceful degradation — embedding service fails silently
-      // App will use keyword fallback in triage engine
-      _isInitialized = false;
-    }
-  }
+  // ── Initialisation ──────────────────────────────────────────────────────────
 
-  Future<void> _loadVocab() async {
-    try {
-      final vocabString =
-          await rootBundle.loadString('assets/model/vocab.txt');
-      final lines = vocabString.split('\n');
-      _vocab = {};
-      for (int i = 0; i < lines.length; i++) {
-        final token = lines[i].trim();
-        if (token.isNotEmpty) {
-          _vocab[token] = i;
-        }
-      }
-    } catch (_) {
-      _vocab = {};
-    }
+  /// Call once before using [getEmbedding]. Loads model and vocab from assets.
+  Future<void> init() async {
+    if (_isInitialized) return;
+    await Future.wait([_loadModel(), _loadVocab()]);
+    _isInitialized = true;
   }
 
   Future<void> _loadModel() async {
-    final modelData = await rootBundle.load('assets/model/minilm.tflite');
-    final buffer = modelData.buffer;
-    final modelBytes =
-        buffer.asUint8List(modelData.offsetInBytes, modelData.lengthInBytes);
-
-    // Check if placeholder file — real TFLite starts with magic bytes
-    if (modelBytes.length < 8 || modelBytes[4] != 0x20) {
-      throw Exception('Placeholder TFLite file — real model not loaded');
-    }
-
-    _interpreter = Interpreter.fromBuffer(modelBytes);
+    _interpreter = await Interpreter.fromAsset('assets/model/minilm.tflite');
   }
 
-  List<int> _tokenize(String text) {
-    if (_vocab.isEmpty) return List.filled(_maxLength, 0);
-
-    final clsId = _vocab['[CLS]'] ?? 101;
-    final sepId = _vocab['[SEP]'] ?? 102;
-    final unkId = _vocab['[UNK]'] ?? 100;
-    final padId = _vocab['[PAD]'] ?? 0;
-
-    final normalised = text.toLowerCase().trim();
-    final tokens = <int>[clsId];
-
-    // Simple whitespace + subword tokenization
-    final words = normalised.split(RegExp(r'\s+'));
-    for (final word in words) {
-      if (tokens.length >= _maxLength - 1) break;
-      if (word.isEmpty) continue;
-
-      if (_vocab.containsKey(word)) {
-        tokens.add(_vocab[word]!);
-      } else {
-        // WordPiece: try character-level subwords
-        bool addedAny = false;
-        String remaining = word;
-        while (remaining.isNotEmpty && tokens.length < _maxLength - 1) {
-          int matchLen = remaining.length;
-
-          bool found = false;
-          while (matchLen > 0) {
-            final sub = addedAny
-                ? '##${remaining.substring(0, matchLen)}'
-                : remaining.substring(0, matchLen);
-            if (_vocab.containsKey(sub)) {
-              tokens.add(_vocab[sub]!);
-              remaining = remaining.substring(matchLen);
-              addedAny = true;
-              found = true;
-              break;
-            }
-            matchLen--;
-          }
-          if (!found) {
-            tokens.add(unkId);
-            break;
-          }
-        }
-        if (!addedAny) tokens.add(unkId);
-      }
+  Future<void> _loadVocab() async {
+    final raw = await rootBundle.loadString('assets/model/vocab.txt');
+    final lines = raw.split('\n');
+    _vocab = {};
+    for (int i = 0; i < lines.length; i++) {
+      final token = lines[i].trim();
+      if (token.isNotEmpty) _vocab[token] = i;
     }
-
-    tokens.add(sepId);
-
-    // Pad to maxLength
-    while (tokens.length < _maxLength) {
-      tokens.add(padId);
-    }
-
-    return tokens.sublist(0, _maxLength);
   }
 
-  Future<List<double>> getEmbedding(String text) async {
-    if (!_isInitialized || _interpreter == null) {
-      // Return zero vector as graceful fallback
-      return List.filled(_embeddingDim, 0.0);
-    }
+  // ── Public API ──────────────────────────────────────────────────────────────
 
-    try {
-      final inputIds = _tokenize(text);
-      final attentionMask =
-          inputIds.map((id) => id != 0 ? 1 : 0).toList();
-      final tokenTypeIds = List.filled(_maxLength, 0);
-
-      // Shape [1, 128]
-      final inputIdsTensor = [inputIds];
-      final attentionMaskTensor = [attentionMask];
-      final tokenTypeIdsTensor = [tokenTypeIds];
-
-      // Output shape [1, 128, 384]
-      final outputTensor = [
-        List.generate(
-            _maxLength, (_) => List.filled(_embeddingDim, 0.0))
-      ];
-
-      _interpreter!.runForMultipleInputs(
-        [inputIdsTensor, attentionMaskTensor, tokenTypeIdsTensor],
-        {0: outputTensor},
+  /// Returns a 384-dimensional L2-normalised embedding for [text].
+  ///
+  /// Throws [StateError] if [init] has not been called (or has not completed).
+  List<double> getEmbedding(String text) {
+    if (!_isInitialized) {
+      throw StateError(
+        'EmbeddingService is not initialised. '
+        'Await EmbeddingService.init() before calling getEmbedding().',
       );
+    }
 
-      // Mean pooling over non-padding tokens
-      final mask = attentionMask;
-      final validCount = mask.reduce((a, b) => a + b);
-      final pooled = List.filled(_embeddingDim, 0.0);
+    // ── Build input tensors ──────────────────────────────────────────────────
+    // tokenize() returns exactly _seqLen IDs: [CLS] + tokens + [SEP] + [PAD]s
+    final ids = tokenize(text);
 
-      for (int t = 0; t < _maxLength; t++) {
-        if (mask[t] == 1) {
-          for (int d = 0; d < _embeddingDim; d++) {
-            pooled[d] += outputTensor[0][t][d];
-          }
+    // attentionMask: 1 for every real token, 0 for every [PAD]
+    final attentionMask = ids
+        .map((id) => id != _padTokenId ? 1 : 0)
+        .toList();
+
+    // tokenTypeIds: all zeros (single-sentence input, no segment B)
+    final tokenTypeIds = List<int>.filled(_seqLen, 0);
+
+    // Wrap in outer list to represent batch size 1 → shape [1, 128]
+    final inputIds      = [ids];
+    final attnMask      = [attentionMask];
+    final tokenTypesIn  = [tokenTypeIds];
+
+    // ── Output buffer ────────────────────────────────────────────────────────
+    // Shape [1, 384]: one sentence embedding of 384 dimensions
+    final outputBuffer = [List<double>.filled(384, 0.0)];
+    const int outputIdx = 0;
+
+    // ── Inference ────────────────────────────────────────────────────────────
+    _interpreter.runForMultipleInputs(
+      [inputIds, attnMask, tokenTypesIn],
+      {outputIdx: outputBuffer},
+    );
+
+    // Return the inner 384-element list (unwrap the batch dimension)
+    return outputBuffer[0];
+  }
+
+  void dispose() => _interpreter.close();
+
+  // ── Tokenisation ────────────────────────────────────────────────────────────
+
+  /// Converts [text] into a fixed-length list of exactly [_seqLen] token IDs:
+  ///   [CLS] + word-piece tokens + [SEP] + [PAD]s (or truncated to fit).
+  ///
+  /// Split pattern covers ASCII whitespace, common punctuation, and the
+  /// Hindi danda (।) and double-danda (॥) characters.
+  List<int> tokenize(String text) {
+    // Normalise and split
+    final cleaned = text.trim();
+    // Split on: whitespace, . , ! ? ; : ( ) [ ] " ' / - and Hindi dandas
+    final words = cleaned
+        .split(RegExp('[\\s.,!?;:()\\[\\]"\'/\\-।॥]+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+
+    // WordPiece each word into sub-token IDs
+    final tokenIds = <int>[];
+    for (final word in words) {
+      tokenIds.addAll(_wordPieceTokenize(word));
+    }
+
+    // Build final sequence: [CLS] + tokens + [SEP], then pad / truncate
+    final maxContent = _seqLen - 2; // reserve slots for CLS + SEP
+    final content    = tokenIds.length > maxContent
+        ? tokenIds.sublist(0, maxContent)
+        : tokenIds;
+
+    final result = <int>[
+      _clsTokenId,
+      ...content,
+      _sepTokenId,
+    ];
+
+    // Pad to exactly _seqLen
+    while (result.length < _seqLen) {
+      result.add(_padTokenId);
+    }
+
+    // Should already be exactly _seqLen; guard just in case
+    return result.sublist(0, _seqLen);
+  }
+
+  // ── WordPiece ───────────────────────────────────────────────────────────────
+
+  /// Tokenises a single [word] into a list of vocabulary IDs using the
+  /// WordPiece algorithm (the same algorithm used by BERT-family models).
+  ///
+  /// Lookup order for each candidate substring:
+  ///   1. Exact match in vocab
+  ///   2. Lowercase version
+  ///   3. Returns [[_unkTokenId]] if the whole word cannot be decomposed.
+  List<int> _wordPieceTokenize(String word) {
+    if (word.isEmpty) return [];
+
+    // Fast path: whole word is in vocab (covers most CJK / accented tokens)
+    final wholeId = _vocabId(word);
+    if (wholeId != null) return [wholeId];
+
+    final result  = <int>[];
+    int start = 0;
+
+    while (start < word.length) {
+      int end     = word.length;
+      int? foundId;
+      String? foundSub;
+
+      // Try progressively shorter substrings from [start..end)
+      while (end > start) {
+        final raw = word.substring(start, end);
+        final sub = start == 0 ? raw : '##$raw';
+
+        final id = _vocabId(sub);
+        if (id != null) {
+          foundId  = id;
+          foundSub = sub;
+          break;
         }
+        end--;
       }
 
-      for (int d = 0; d < _embeddingDim; d++) {
-        pooled[d] /= validCount.toDouble();
+      if (foundId == null) {
+        // No sub-token found for the remainder → whole word is UNK
+        return [_unkTokenId];
       }
 
-      return pooled;
-    } catch (_) {
-      return List.filled(_embeddingDim, 0.0);
+      result.add(foundId);
+      start += (start == 0 ? foundSub!.length : foundSub!.length - 2);
     }
+
+    return result.isEmpty ? [_unkTokenId] : result;
   }
 
-  double cosineSimilarity(List<double> a, List<double> b) {
-    if (a.length != b.length) return 0.0;
-    double dot = 0.0, normA = 0.0, normB = 0.0;
-    for (int i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    final denom = sqrt(normA) * sqrt(normB);
-    if (denom == 0.0) return 0.0;
-    return (dot / denom).clamp(0.0, 1.0);
-  }
+  // ── Vocab helpers ───────────────────────────────────────────────────────────
+
+  /// Returns the vocabulary ID for [token], trying exact then lowercase.
+  /// Returns null if neither is found.
+  int? _vocabId(String token) =>
+      _vocab[token] ?? _vocab[token.toLowerCase()];
 }

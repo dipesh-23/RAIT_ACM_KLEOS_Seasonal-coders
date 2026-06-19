@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 import '../app_theme.dart';
 import '../models/triage_result.dart';
 import '../providers/triage_provider.dart';
 import '../services/tts_service.dart';
+import 'referral_screen.dart';
+import 'session_start_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   const ResultScreen({super.key});
@@ -15,198 +17,235 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _flashController;
-  late Animation<double> _flashAnimation;
+  late AnimationController _scaleCtrl;
+  late Animation<double> _scaleAnim;
 
   @override
   void initState() {
     super.initState();
-    WakelockPlus.enable();
+    _scaleCtrl = AnimationController(vsync: this,
+        duration: const Duration(milliseconds: 600));
+    _scaleAnim = CurvedAnimation(parent: _scaleCtrl, curve: Curves.elasticOut);
+    _scaleCtrl.forward();
 
-    _flashController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _flashAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _flashController, curve: Curves.easeIn),
-    );
-    _flashController.forward();
-
+    // Auto-play TTS
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<TriageProvider>();
-      if (provider.triageResult != null) {
-        TtsService.instance.speakResult(provider.triageResult!.level);
-      }
+      final result = context.read<TriageProvider>().currentResult;
+      if (result != null) TtsService.instance.playTriageResult(result.category);
     });
   }
 
   @override
   void dispose() {
-    WakelockPlus.disable();
-    _flashController.dispose();
-    TtsService.instance.stop();
+    _scaleCtrl.dispose();
     super.dispose();
   }
 
-  Color _bgColor(TriageLevel level) {
-    switch (level) {
-      case TriageLevel.red:
-        return AppColors.redAlert;
-      case TriageLevel.yellow:
-        return AppColors.yellowAlert;
-      case TriageLevel.green:
-        return AppColors.greenAlert;
+  Color _categoryColor(TriageCategory cat) {
+    switch (cat) {
+      case TriageCategory.red:    return AppTheme.triageRed;
+      case TriageCategory.yellow: return AppTheme.triageYellow;
+      case TriageCategory.green:  return AppTheme.triageGreen;
     }
   }
 
-  IconData _icon(TriageLevel level) {
-    switch (level) {
-      case TriageLevel.red:
-        return Icons.warning_rounded;
-      case TriageLevel.yellow:
-        return Icons.access_time_rounded;
-      case TriageLevel.green:
-        return Icons.check_circle_rounded;
+  Gradient _categoryGradient(TriageCategory cat) {
+    switch (cat) {
+      case TriageCategory.red:    return AppTheme.redGradient;
+      case TriageCategory.yellow: return const LinearGradient(
+          colors: [Color(0xFFFFC107), Color(0xFFFF8F00)]);
+      case TriageCategory.green:  return AppTheme.greenGradient;
+    }
+  }
+
+  IconData _categoryIcon(TriageCategory cat) {
+    switch (cat) {
+      case TriageCategory.red:    return Icons.emergency_rounded;
+      case TriageCategory.yellow: return Icons.warning_amber_rounded;
+      case TriageCategory.green:  return Icons.check_circle_rounded;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TriageProvider>();
-    final result = provider.triageResult;
+    final result = provider.currentResult;
+    if (result == null) return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
 
-    if (result == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
+    final cat = result.category;
+    final color = _categoryColor(cat);
+    final gradient = _categoryGradient(cat);
 
-    final bg = _bgColor(result.level);
-
-    return FadeTransition(
-      opacity: _flashAnimation,
-      child: Scaffold(
-        backgroundColor: bg,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Session code
-                Text(
-                  'कोड: ${result.sessionCode}',
-                  style: AppTextStyles.hindiSmall
-                      .copyWith(color: Colors.white70),
-                  textAlign: TextAlign.right,
-                ),
-                const SizedBox(height: 8),
-
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(_icon(result.level),
-                          color: Colors.white, size: 96),
-                      const SizedBox(height: 20),
-                      Text(
-                        result.levelHindi,
-                        style: AppTextStyles.hindiLarge
-                            .copyWith(fontSize: 40),
-                        textAlign: TextAlign.center,
+    return Scaffold(
+      backgroundColor: AppTheme.bgPage,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Result Banner ──
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 22),
+              decoration: BoxDecoration(gradient: gradient),
+              child: Column(
+                children: [
+                  ScaleTransition(
+                    scale: _scaleAnim,
+                    child: Container(
+                      width: 88, height: 88,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        result.hindiReason,
-                        style: AppTextStyles.hindiBody
-                            .copyWith(color: Colors.white.withOpacity(0.9)),
-                        textAlign: TextAlign.center,
-                      ),
-
-                      // Confirmed symptoms list
-                      if (result.confirmedConcepts.isNotEmpty) ...[
-                        const SizedBox(height: 24),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'पुष्ट लक्षण:',
-                                style: AppTextStyles.hindiSmall
-                                    .copyWith(color: Colors.white70),
-                              ),
-                              const SizedBox(height: 8),
-                              ...result.confirmedConcepts.map(
-                                (c) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.circle,
-                                          color: Colors.white, size: 8),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          c.hindiQuestion.replaceAll(
-                                              'क्या मरीज ', ''),
-                                          style: AppTextStyles.hindiBody
-                                              .copyWith(
-                                                  color: Colors.white
-                                                      .withOpacity(0.95)),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
+                      child: Icon(_categoryIcon(cat),
+                          color: Colors.white, size: 50),
+                    ),
                   ),
-                ),
-
-                // Referral slip button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: bg,
-                    minimumSize: const Size(double.infinity, 72),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 4,
-                    textStyle: AppTextStyles.hindiButton
-                        .copyWith(color: bg),
-                  ),
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed('/referral'),
-                  child: const Text('रेफरल स्लिप बनाएं'),
-                ),
-                const SizedBox(height: 12),
-
-                // New patient
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    minimumSize: const Size(double.infinity, 48),
-                  ),
-                  onPressed: () {
-                    provider.resetSession();
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                        '/session-start', (r) => false);
-                  },
-                  child: Text('नया मरीज →',
-                      style: AppTextStyles.hindiBody
-                          .copyWith(color: Colors.white70)),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Text(result.categoryLabel,
+                      style: GoogleFonts.poppins(
+                          color: Colors.white, fontSize: 26,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text(result.recommendationHindi,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                          color: Colors.white.withOpacity(0.9), fontSize: 14,
+                          fontWeight: FontWeight.w500, height: 1.5)),
+                ],
+              ),
             ),
-          ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(22),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── What Was Said ──
+                    AppTheme.sectionTitle('ट्रांसक्रिप्शन'),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgWhite,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppTheme.cardShadow,
+                      ),
+                      child: Text('"${result.transcribedText}"',
+                          style: GoogleFonts.poppins(
+                              color: AppTheme.textDark, fontSize: 14,
+                              fontStyle: FontStyle.italic, height: 1.5)),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── Matched Symptoms ──
+                    AppTheme.sectionTitle('पहचाने गए लक्षण'),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8, runSpacing: 8,
+                      children: result.matchedSymptoms.map((s) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: color.withOpacity(0.35)),
+                        ),
+                        child: Text(s, style: GoogleFonts.poppins(
+                            color: color, fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                      )).toList(),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── Recommendation Card ──
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: color.withOpacity(0.25)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.tips_and_updates_rounded,
+                              color: color, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('ASHA सलाह',
+                                    style: GoogleFonts.poppins(
+                                        color: color, fontSize: 13,
+                                        fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 4),
+                                Text(result.recommendationHindi,
+                                    style: GoogleFonts.poppins(
+                                        color: AppTheme.textDark, fontSize: 13,
+                                        height: 1.5)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // ── TTS Replay ──
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          TtsService.instance.playTriageResult(cat),
+                      icon: Icon(Icons.volume_up_rounded,
+                          color: AppTheme.primary, size: 20),
+                      label: Text('आवाज में सुनें',
+                          style: GoogleFonts.poppins(
+                              color: AppTheme.primary, fontSize: 14,
+                              fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    if (result.requiresReferral)
+                      AppTheme.gradientButton(
+                        label: 'रेफरल स्लिप बनाएं',
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => const ReferralScreen())),
+                        gradient: AppTheme.redGradient,
+                        icon: Icons.local_hospital_rounded,
+                      ),
+
+                    const SizedBox(height: 12),
+
+                    AppTheme.gradientButton(
+                      label: 'नया मरीज →',
+                      onTap: () {
+                        context.read<TriageProvider>().reset();
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                              builder: (_) => const SessionStartScreen()),
+                          (route) => false,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

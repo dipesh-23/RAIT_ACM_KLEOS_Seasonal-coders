@@ -1,78 +1,73 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/session_model.dart';
+import '../models/triage_result.dart';
 
 class DatabaseService {
-  static final DatabaseService instance = DatabaseService._internal();
-  DatabaseService._internal();
+  static DatabaseService? _instance;
+  static DatabaseService get instance => _instance ??= DatabaseService._();
+  DatabaseService._();
 
-  Database? _database;
+  Database? _db;
 
   Future<Database> get database async {
-    _database ??= await _openDatabase();
-    return _database!;
+    _db ??= await _initDb();
+    return _db!;
   }
 
-  Future<Database> _openDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'asha_triage.db');
-    return openDatabase(
+  Future<Database> _initDb() async {
+    final path = join(await getDatabasesPath(), 'asha_triage.db');
+    return await openDatabase(
       path,
       version: 1,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE sessions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_code TEXT NOT NULL,
-            worker_name TEXT,
+            id TEXT PRIMARY KEY,
+            asha_worker_name TEXT NOT NULL,
             patient_age_group TEXT,
             symptom_duration TEXT,
-            raw_transcription TEXT,
-            confirmed_concepts TEXT,
-            triage_level TEXT,
-            timestamp TEXT,
-            referral_generated INTEGER DEFAULT 0
+            transcribed_text TEXT,
+            started_at TEXT NOT NULL,
+            is_completed INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE triage_results (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            category TEXT NOT NULL,
+            transcribed_text TEXT NOT NULL,
+            confidence_score REAL NOT NULL,
+            matched_symptoms TEXT,
+            recommendation TEXT,
+            recommendation_hindi TEXT,
+            created_at TEXT NOT NULL,
+            requires_referral INTEGER DEFAULT 0
           )
         ''');
       },
     );
   }
 
-  Future<void> initDatabase() async {
-    await database;
+  Future<void> insertSession(SessionModel s) async {
+    final db = await database;
+    await db.insert('sessions', s.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<int> insertSession(SessionModel session) async {
+  Future<void> updateSession(SessionModel s) async {
     final db = await database;
-    return db.insert('sessions', session.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.update('sessions', s.toMap(), where: 'id = ?', whereArgs: [s.id]);
   }
 
-  Future<List<SessionModel>> getAllSessions() async {
+  Future<void> insertTriageResult(TriageResult r) async {
     final db = await database;
-    final maps = await db.query('sessions', orderBy: 'id DESC');
-    return maps.map((m) => SessionModel.fromMap(m)).toList();
+    await db.insert('triage_results', r.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  Future<SessionModel?> getSessionByCode(String code) async {
+  Future<List<TriageResult>> getAllResults() async {
     final db = await database;
-    final maps = await db.query(
-      'sessions',
-      where: 'session_code = ?',
-      whereArgs: [code],
-      limit: 1,
-    );
-    if (maps.isEmpty) return null;
-    return SessionModel.fromMap(maps.first);
-  }
-
-  Future<void> markReferralGenerated(String sessionCode) async {
-    final db = await database;
-    await db.update(
-      'sessions',
-      {'referral_generated': 1},
-      where: 'session_code = ?',
-      whereArgs: [sessionCode],
-    );
+    final maps = await db.query('triage_results', orderBy: 'created_at DESC');
+    return maps.map((m) => TriageResult.fromMap(m)).toList();
   }
 }

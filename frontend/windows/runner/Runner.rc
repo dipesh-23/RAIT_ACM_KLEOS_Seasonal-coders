@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.asha" "\0"
+            VALUE "CompanyName", "com.asha.triage" "\0"
             VALUE "FileDescription", "asha_triage" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "asha_triage" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.asha. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.asha.triage. All rights reserved." "\0"
             VALUE "OriginalFilename", "asha_triage.exe" "\0"
             VALUE "ProductName", "asha_triage" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

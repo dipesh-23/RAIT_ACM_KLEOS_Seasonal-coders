@@ -1,4 +1,4 @@
-package com.asha.asha_triage
+package com.asha.triage
 
 import io.flutter.embedding.android.FlutterActivity
 

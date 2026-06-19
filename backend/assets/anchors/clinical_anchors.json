@@ -1,0 +1,27 @@
+{
+  "RED": [
+    { "phrase": "breathing difficulty",          "hindi": "सांस लेने में तकलीफ",          "weight": 10 },
+    { "phrase": "unconscious unresponsive",       "hindi": "बेहोश और बेजान",               "weight": 10 },
+    { "phrase": "seizure convulsion",             "hindi": "दौरा या ऐंठन",                 "weight": 10 },
+    { "phrase": "severe bleeding",                "hindi": "तेज खून बहना",                 "weight": 10 },
+    { "phrase": "chest pain",                     "hindi": "सीने में दर्द",                "weight": 9  },
+    { "phrase": "newborn emergency",              "hindi": "नवजात शिशु आपातकाल",           "weight": 10 },
+    { "phrase": "labor delivery complication",    "hindi": "प्रसव में जटिलता",              "weight": 10 },
+    { "phrase": "not eating not drinking",        "hindi": "खाना पीना बंद करना",           "weight": 8  }
+  ],
+  "YELLOW": [
+    { "phrase": "high fever many days",           "hindi": "कई दिनों से तेज बुखार",        "weight": 6 },
+    { "phrase": "repeated vomiting",              "hindi": "बार-बार उल्टी होना",           "weight": 5 },
+    { "phrase": "severe diarrhea",                "hindi": "गंभीर दस्त",                   "weight": 5 },
+    { "phrase": "severe headache",                "hindi": "तेज सिरदर्द",                  "weight": 5 },
+    { "phrase": "pregnancy problem",              "hindi": "गर्भावस्था में समस्या",         "weight": 6 },
+    { "phrase": "child not active lethargic",     "hindi": "बच्चा सुस्त और निष्क्रिय है", "weight": 6 },
+    { "phrase": "swelling body",                  "hindi": "शरीर में सूजन",                "weight": 5 }
+  ],
+  "GREEN": [
+    { "phrase": "mild fever",                     "hindi": "हल्का बुखार",                  "weight": 2 },
+    { "phrase": "common cold cough",              "hindi": "सामान्य सर्दी-खांसी",          "weight": 1 },
+    { "phrase": "minor body ache",                "hindi": "हल्का शरीर दर्द",              "weight": 1 },
+    { "phrase": "minor stomach ache",             "hindi": "हल्का पेट दर्द",               "weight": 1 }
+  ]
+}
