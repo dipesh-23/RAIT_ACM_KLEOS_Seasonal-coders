@@ -413,6 +413,8 @@ class TriageEngine {
     required bool safetyNetTriggered,
     required String sessionId,
     required String transcribedText,
+    required String ageGroup,
+    required String duration,
   }) {
     // ── Safety-net fast path ─────────────────────────────────────────────────
     if (safetyNetTriggered) {
@@ -455,6 +457,23 @@ class TriageEngine {
     if (yellowCount >= 2) {
       yellowScore *= 1.3;
     }
+
+    // ── Age and Duration Multipliers ─────────────────────────────────────────
+    double scoreMultiplier = 1.0;
+    final age = ageGroup.toLowerCase();
+    if (age == 'child' || age == 'elderly') {
+      scoreMultiplier += 0.2; // 20% boost for vulnerable age groups
+    }
+
+    final dur = duration.toLowerCase();
+    if (dur == 'fourplus') {
+      scoreMultiplier += 0.3; // 30% boost for prolonged symptoms
+    } else if (dur == 'twothreedays') {
+      scoreMultiplier += 0.15; // 15% boost for multi-day symptoms
+    }
+
+    redScore *= scoreMultiplier;
+    yellowScore *= scoreMultiplier;
 
     // ── Level resolution ─────────────────────────────────────────────────────
     TriageCategory category;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../app_theme.dart';
 import '../services/onboarding_service.dart';
 import 'session_start_screen.dart';
@@ -17,6 +18,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late AnimationController _slideCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  bool _isCheckingLanguage = false;
 
   @override
   void initState() {
@@ -40,6 +42,41 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   void _proceed() async {
+    setState(() => _isCheckingLanguage = true);
+    
+    bool hasHindi = false;
+    try {
+      final stt = SpeechToText();
+      final available = await stt.initialize();
+      if (available) {
+        final locales = await stt.locales();
+        for (var locale in locales) {
+          if (locale.localeId.toLowerCase().contains('hi')) {
+            hasHindi = true;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('STT init error: $e');
+    }
+
+    setState(() => _isCheckingLanguage = false);
+
+    if (!hasHindi) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('चेतावनी: डिवाइस पर हिंदी (hi) भाषा पैक नहीं मिला। कृपया सेटिंग्स में डाउनलोड करें।',
+              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)),
+          backgroundColor: AppTheme.triageRed,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      // Wait to let user read the warning
+      await Future.delayed(const Duration(seconds: 3));
+    }
+
     await OnboardingService.instance.completeOnboarding('ASHA कार्यकर्ता');
     if (!mounted) return;
     Navigator.of(context).pushReplacement(

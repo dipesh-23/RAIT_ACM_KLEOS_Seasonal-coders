@@ -84,6 +84,9 @@ class ReferralScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(18),
                     child: Column(
                       children: [
+                        _infoRow('रेफरल कोड (Session Code)',
+                            session?.sessionCode ?? '--'),
+                        _divider(),
                         _infoRow('ASHA कार्यकर्ता',
                             session?.ashaWorkerName ?? 'ASHA Worker'),
                         _divider(),
@@ -113,17 +116,27 @@ class ReferralScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('लक्षण / Symptoms:',
+                              Text('लक्षण / Symptoms (Confirmed Only):',
                                   style: GoogleFonts.poppins(
                                       color: AppTheme.triageRed, fontSize: 12,
                                       fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
-                              Text(
-                                result?.transcribedText ??
-                                    'मरीज को तेज बुखार, खांसी और सांस लेने में तकलीफ है।',
-                                style: GoogleFonts.poppins(
-                                    color: AppTheme.textDark, fontSize: 13,
-                                    height: 1.5),
+                              Builder(
+                                builder: (context) {
+                                  String symptomsText = 'कोई लक्षण नहीं';
+                                  
+                                  // The result.matchedSymptoms has the list of confirmed concept hindiLabels (or reasons) from triage engine
+                                  if (result != null && result.matchedSymptoms.isNotEmpty) {
+                                    symptomsText = result.matchedSymptoms.join(', ');
+                                  }
+                                  
+                                  return Text(
+                                    symptomsText,
+                                    style: GoogleFonts.poppins(
+                                        color: AppTheme.textDark, fontSize: 13,
+                                        height: 1.5),
+                                  );
+                                }
                               ),
                             ],
                           ),

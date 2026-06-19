@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../app_theme.dart';
 import '../models/triage_result.dart';
 import '../providers/triage_provider.dart';
@@ -23,6 +24,8 @@ class _ResultScreenState extends State<ResultScreen>
   @override
   void initState() {
     super.initState();
+    WakelockPlus.enable();
+    
     _scaleCtrl = AnimationController(vsync: this,
         duration: const Duration(milliseconds: 600));
     _scaleAnim = CurvedAnimation(parent: _scaleCtrl, curve: Curves.elasticOut);
@@ -37,6 +40,7 @@ class _ResultScreenState extends State<ResultScreen>
 
   @override
   void dispose() {
+    WakelockPlus.disable();
     _scaleCtrl.dispose();
     super.dispose();
   }

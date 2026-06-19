@@ -19,35 +19,48 @@ class DatabaseService {
     final path = join(await getDatabasesPath(), 'asha_triage.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        await db.execute('DROP TABLE IF EXISTS sessions');
+        await db.execute('DROP TABLE IF EXISTS triage_results');
+        await _createTables(db);
+      },
       onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE sessions (
-            id TEXT PRIMARY KEY,
-            asha_worker_name TEXT NOT NULL,
-            patient_age_group TEXT,
-            symptom_duration TEXT,
-            transcribed_text TEXT,
-            started_at TEXT NOT NULL,
-            is_completed INTEGER DEFAULT 0
-          )
-        ''');
-        await db.execute('''
-          CREATE TABLE triage_results (
-            id TEXT PRIMARY KEY,
-            session_id TEXT NOT NULL,
-            category TEXT NOT NULL,
-            transcribed_text TEXT NOT NULL,
-            confidence_score REAL NOT NULL,
-            matched_symptoms TEXT,
-            recommendation TEXT,
-            recommendation_hindi TEXT,
-            created_at TEXT NOT NULL,
-            requires_referral INTEGER DEFAULT 0
-          )
-        ''');
+        await _createTables(db);
       },
     );
+  }
+
+  Future<void> _createTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE sessions (
+        id TEXT PRIMARY KEY,
+        session_code TEXT NOT NULL,
+        asha_worker_name TEXT NOT NULL,
+        patient_age_group TEXT,
+        symptom_duration TEXT,
+        transcribed_text TEXT,
+        confirmed_concepts TEXT,
+        triage_level TEXT,
+        started_at TEXT NOT NULL,
+        is_completed INTEGER DEFAULT 0,
+        referral_generated INTEGER DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE triage_results (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        category TEXT NOT NULL,
+        transcribed_text TEXT NOT NULL,
+        confidence_score REAL NOT NULL,
+        matched_symptoms TEXT,
+        recommendation TEXT,
+        recommendation_hindi TEXT,
+        created_at TEXT NOT NULL,
+        requires_referral INTEGER DEFAULT 0
+      )
+    ''');
   }
 
   Future<void> insertSession(SessionModel s) async {

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/session_model.dart';
 import '../models/triage_result.dart';
@@ -26,10 +27,9 @@ class TriageProvider extends ChangeNotifier {
   List<bool?>   get confirmationAnswers => _confirmationAnswers;
 
   List<String> get confirmationQuestions {
-    if (_detectedConcepts.isEmpty) {
-      return ['क्या मरीज की हालत बहुत गंभीर लग रही है?'];
-    }
-    return _detectedConcepts.map((c) => c.confirmationQuestion).toList();
+    final questions = _detectedConcepts.map((c) => c.confirmationQuestion).toList();
+    questions.add('क्या मरीज की हालत बहुत गंभीर लग रही है?'); // Mandatory safety net
+    return questions;
   }
 
   void startSession(SessionModel session) {
@@ -95,7 +95,7 @@ class TriageProvider extends ChangeNotifier {
   void answerConfirmation(bool answer) {
     _confirmationAnswers[_currentConfirmationStep] = answer;
     
-    // Also update the underlying concept
+    // Also update the underlying concept, unless it's the safety net question
     if (_detectedConcepts.isNotEmpty && _currentConfirmationStep < _detectedConcepts.length) {
       _detectedConcepts[_currentConfirmationStep].confirmed = answer;
     }
@@ -119,10 +119,10 @@ class TriageProvider extends ChangeNotifier {
   }
 
   TriageResult computeFinalTriage() {
-    // If the safety net question was triggered (e.g. if no concepts detected, we fall back to 1 static question)
+    // The safety net question is always the last question in the confirmationAnswers list
     bool safetyNet = false;
-    if (_detectedConcepts.isEmpty && _confirmationAnswers.isNotEmpty) {
-      safetyNet = _confirmationAnswers[0] == true;
+    if (_confirmationAnswers.isNotEmpty) {
+      safetyNet = _confirmationAnswers.last == true;
     }
     
     final result = TriageEngine.instance.scoreTriage(
@@ -130,10 +130,35 @@ class TriageProvider extends ChangeNotifier {
       safetyNetTriggered: safetyNet,
       sessionId: _currentSession?.id ?? 'unknown',
       transcribedText: _transcribedText,
+      ageGroup: _currentSession?.patientAgeGroup?.name ?? 'ADULT',
+      duration: _currentSession?.symptomDuration?.name ?? 'TODAY',
     );
     
     setTriageResult(result);
+
+    // Save final session state
+    if (_currentSession != null) {
+      final confirmedConceptsJson = jsonEncode(
+        _detectedConcepts.where((c) => c.confirmed).map((c) => c.conceptKey).toList()
+      );
+      
+      _currentSession = _currentSession!.copyWith(
+        isCompleted: true,
+        confirmedConcepts: confirmedConceptsJson,
+        triageLevel: result.category.name,
+      );
+      DatabaseService.instance.updateSession(_currentSession!);
+    }
+
     return result;
+  }
+
+  void markReferralGenerated() {
+    if (_currentSession != null) {
+      _currentSession = _currentSession!.copyWith(referralGenerated: true);
+      DatabaseService.instance.updateSession(_currentSession!);
+      notifyListeners();
+    }
   }
 
   void reset() {
