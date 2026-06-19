@@ -31,9 +31,10 @@ class SttService {
   // Exposes the calibration state so the UI can show a calibration banner.
   final ValueNotifier<bool> isCalibratedNotifier = ValueNotifier<bool>(false);
 
-  // Guards against concurrent chunk processing — if Vosk is still handling
-  // the previous chunk when a new one arrives, drop the new one rather than
-  // letting async calls pile up (which causes stale, delayed transcription).
+  // 1-slot pending queue: if Vosk is busy when a new chunk arrives, store
+  // the latest chunk here (overwriting any older pending chunk).  Once Vosk
+  // finishes it drains this slot before returning so no mid-word gap occurs.
+  Uint8List? _pendingChunk;
   bool _processingChunk = false;
 
   bool _isListening = false;
@@ -144,9 +145,6 @@ class SttService {
 
       _audioStreamSubscription = audioStream.listen((rawBytes) async {
         if (_recognizer == null) return;
-        // Drop this chunk if Vosk is still processing the previous one.
-        if (_processingChunk) return;
-        _processingChunk = true;
 
         // Pipe through noise suppressor (speech frames pass unchanged).
         final Uint8List cleanedBytes = _noiseSuppressor.process(rawBytes);
@@ -156,23 +154,13 @@ class SttService {
           isCalibratedNotifier.value = true;
         }
 
-        try {
-          final bool isFinal =
-              await _recognizer!.acceptWaveformBytes(cleanedBytes);
-
-          if (isFinal) {
-            final text = parseFinal(await _recognizer!.getFinalResult());
-            if (text.isNotEmpty) pushTranscript(text);
-          } else {
-            final partial =
-                parsePartial(await _recognizer!.getPartialResult());
-            if (partial.isNotEmpty) pushTranscript(partial);
-          }
-        } catch (e) {
-          debugPrint('[VOSK] chunk processing error: $e');
-        } finally {
-          _processingChunk = false;
+        if (_processingChunk) {
+          // Vosk is busy — park this chunk (overwrite any older pending one).
+          _pendingChunk = cleanedBytes;
+          return;
         }
+
+        await _processChunk(cleanedBytes);
       }, onError: (e) {
         debugPrint('[VOSK] Audio stream error: $e');
         onError?.call('Audio stream error: $e');
@@ -275,6 +263,41 @@ class SttService {
   }
 
   // ---------------------------------------------------------------------------
+  // Chunk processing
+  // ---------------------------------------------------------------------------
+
+  /// Feeds [bytes] into Vosk and emits any transcript result.
+  /// After Vosk returns, drains [_pendingChunk] if a chunk arrived while
+  /// this call was in progress (1-slot queue, no mid-word gaps).
+  Future<void> _processChunk(Uint8List bytes) async {
+    _processingChunk = true;
+    try {
+      if (_recognizer == null) return;
+      final bool isFinal =
+          await _recognizer!.acceptWaveformBytes(bytes);
+
+      if (isFinal) {
+        final text = parseFinal(await _recognizer!.getFinalResult());
+        if (text.isNotEmpty) pushTranscript(text);
+      } else {
+        final partial = parsePartial(await _recognizer!.getPartialResult());
+        if (partial.isNotEmpty) pushTranscript(partial);
+      }
+    } catch (e) {
+      debugPrint('[VOSK] chunk processing error: $e');
+    } finally {
+      _processingChunk = false;
+    }
+
+    // Drain pending chunk (if one arrived while we were busy).
+    final pending = _pendingChunk;
+    if (pending != null && _recognizer != null) {
+      _pendingChunk = null;
+      await _processChunk(pending);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Cleanup
   // ---------------------------------------------------------------------------
 
@@ -291,6 +314,7 @@ class SttService {
     }
     _recognizer = null;
     _processingChunk = false;
+    _pendingChunk = null;
 
     debugPrint('[VOSK] Cleanup complete.');
   }

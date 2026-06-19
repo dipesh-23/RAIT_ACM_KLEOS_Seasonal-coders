@@ -4,46 +4,68 @@ import 'package:flutter/foundation.dart';
 
 /// Frame-level Voice Activity Detection (VAD) based noise suppressor.
 ///
-/// Strategy: compare each frame's RMS energy against the calibrated noise-floor
-/// RMS. If the frame is louder than the floor by [gateThresholdMultiplier],
-/// pass the **original bytes unchanged** to Vosk. Otherwise return a zero
-/// (silence) frame.
-///
-/// Crucially, speech frames are **never sample-modified** — this preserves the
-/// exact waveform that Vosk's acoustic model was trained on.
+/// ## Algorithm
+/// 1. **Calibration** — first [calibrationFramesNeeded] frames build the
+///    ambient noise-floor RMS. Frames whose own RMS exceeds
+///    [calibrationSpeechCeiling] are skipped so that speech at session start
+///    cannot inflate the noise floor.
+/// 2. **Speech detection** — after calibration a 5-frame rolling RMS average
+///    is compared against `noiseFloor × gateThresholdMultiplier`.
+/// 3. **Hangover** — once a speech frame is detected, [hangoverFrames]
+///    additional frames are passed through regardless of energy, so trailing
+///    phonemes (plosives, fricatives) are never clipped.
+/// 4. **Pass-through** — speech frames are returned **byte-for-byte
+///    unchanged** — the waveform Vosk sees is never sample-modified.
+/// 5. **Silence** — non-speech frames outside hangover return a zero-filled
+///    buffer. Vosk treats silence correctly in its HMM.
 class NoiseSuppressor {
   // ---------------------------------------------------------------------------
   // Calibration state
   // ---------------------------------------------------------------------------
 
-  /// Per-sample EMA of absolute values — kept for inspection / debugging.
-  List<double> _noiseProfile = [];
-
-  /// Scalar RMS of the noise floor (computed once calibration completes).
   double _noiseFloorRms = 0.0;
-
-  /// Accumulates sum-of-squares during calibration to derive RMS.
   double _calibrationSumSq = 0.0;
   int _calibrationSampleCount = 0;
-
-  bool _isCalibrated = false;
   int _calibrationFrameCount = 0;
+  bool _isCalibrated = false;
+
+  // ---------------------------------------------------------------------------
+  // Rolling RMS smoother (5-frame window)
+  // ---------------------------------------------------------------------------
+
+  static const int _rmsWindowSize = 5;
+  final List<double> _rmsHistory = [];
+  double _smoothedRms = 0.0;
+
+  // ---------------------------------------------------------------------------
+  // Hangover state
+  // ---------------------------------------------------------------------------
+
+  int _hangoverRemaining = 0;
 
   // ---------------------------------------------------------------------------
   // Tuning constants
   // ---------------------------------------------------------------------------
 
-  /// Number of audio frames that define the noise floor.
-  /// Each chunk from `record` is typically 40–100 ms, so 15 frames ≈ 0.6–1.5 s.
-  static const int calibrationFramesNeeded = 15;
+  /// Frames used to measure the ambient noise floor.
+  /// Only frames below [calibrationSpeechCeiling] are included.
+  /// At ~50 ms/frame → ≈ 600 ms of actual silence needed.
+  static const int calibrationFramesNeeded = 12;
 
-  /// A frame whose RMS is above `noiseFloorRms × gateThresholdMultiplier`
-  /// is classified as speech and passed through unchanged.
-  /// 1.8 is deliberately conservative — better to let a little noise through
-  /// than to accidentally gate out quiet speech.
-  static const double gateThresholdMultiplier = 1.8;
+  /// During calibration, any frame whose RMS exceeds this value is treated as
+  /// speech and skipped, protecting the noise floor estimate.
+  /// 0.02 ≈ a soft voice at 30 cm; anything louder is likely speech.
+  static const double calibrationSpeechCeiling = 0.02;
 
-  // smoothingAlpha kept for the noise-profile EMA (profile tracking only).
+  /// A smoothed-RMS above `noiseFloor × gateThresholdMultiplier` is speech.
+  /// 1.3 is conservative — passes quiet speakers; the hangover handles edges.
+  static const double gateThresholdMultiplier = 1.3;
+
+  /// Extra frames passed after the last speech frame to avoid clipping
+  /// trailing fricatives / plosives (e.g. "s", "t", "k").
+  static const int hangoverFrames = 6;
+
+  // smoothingAlpha: used for the per-sample EMA profile (debugging only).
   static const double smoothingAlpha = 0.85;
 
   // ---------------------------------------------------------------------------
@@ -52,7 +74,7 @@ class NoiseSuppressor {
 
   bool get isCalibrated => _isCalibrated;
   int get calibrationFrameCount => _calibrationFrameCount;
-  List<double> get noiseProfile => List.unmodifiable(_noiseProfile);
+  double get noiseFloorRms => _noiseFloorRms;
 
   // ---------------------------------------------------------------------------
   // Public API
@@ -61,48 +83,64 @@ class NoiseSuppressor {
   void reset() {
     _isCalibrated = false;
     _calibrationFrameCount = 0;
-    _noiseProfile = [];
     _noiseFloorRms = 0.0;
     _calibrationSumSq = 0.0;
     _calibrationSampleCount = 0;
+    _rmsHistory.clear();
+    _smoothedRms = 0.0;
+    _hangoverRemaining = 0;
     debugPrint('[NOISE] NoiseSuppressor reset — recalibrating.');
   }
 
   /// Main entry point. Accepts raw PCM-16 LE [bytes] and returns either:
-  /// - The **original** bytes if the frame is speech (RMS > threshold), or
+  /// - The **original** bytes if this frame is speech or within hangover, or
   /// - A zero-filled [Uint8List] of the same length if the frame is noise.
   ///
-  /// During calibration (first [calibrationFramesNeeded] frames) always
-  /// returns the original bytes so Vosk keeps receiving audio.
+  /// During calibration (first [calibrationFramesNeeded] qualifying frames)
+  /// always returns the original bytes so Vosk keeps receiving audio.
   Uint8List process(Uint8List bytes) {
     if (bytes.isEmpty) return bytes;
 
-    // Decode PCM-16 LE → float samples (needed for energy calculation).
+    // ── Decode PCM-16 LE → RMS ──────────────────────────────────────────────
     final int sampleCount = bytes.length ~/ 2;
-    final ByteData bd = bytes.buffer.asByteData(bytes.offsetInBytes, bytes.length);
+    final ByteData bd =
+        bytes.buffer.asByteData(bytes.offsetInBytes, bytes.length);
 
     double sumSq = 0.0;
-    final List<double> frame = List<double>.filled(sampleCount, 0.0);
     for (int i = 0; i < sampleCount; i++) {
       final double s = bd.getInt16(i * 2, Endian.little) / 32768.0;
-      frame[i] = s;
       sumSq += s * s;
     }
-    final double frameRms = math.sqrt(sumSq / sampleCount);
+    final double frameRms =
+        sampleCount > 0 ? math.sqrt(sumSq / sampleCount) : 0.0;
+
+    // ── Update rolling RMS smoother ─────────────────────────────────────────
+    _rmsHistory.add(frameRms);
+    if (_rmsHistory.length > _rmsWindowSize) _rmsHistory.removeAt(0);
+    _smoothedRms =
+        _rmsHistory.reduce((a, b) => a + b) / _rmsHistory.length;
 
     // ── Calibration phase ────────────────────────────────────────────────────
     if (!_isCalibrated) {
-      _updateNoiseProfile(frame, frameRms, sampleCount, sumSq);
-      return bytes; // pass through unchanged during calibration
+      _updateCalibration(frameRms, sumSq, sampleCount);
+      return bytes; // always pass through during calibration
     }
 
     // ── VAD gate ─────────────────────────────────────────────────────────────
-    // If this frame is louder than the noise floor × multiplier → speech.
-    if (frameRms > _noiseFloorRms * gateThresholdMultiplier) {
-      return bytes; // speech frame — pass original bytes to Vosk untouched
+    final double speechThreshold = _noiseFloorRms * gateThresholdMultiplier;
+    final bool isSpeech = _smoothedRms > speechThreshold;
+
+    if (isSpeech) {
+      _hangoverRemaining = hangoverFrames; // restart hangover countdown
+      return bytes; // speech — pass original bytes to Vosk untouched
     }
 
-    // Noise frame — send silence so Vosk doesn't accumulate garbage.
+    if (_hangoverRemaining > 0) {
+      _hangoverRemaining--;
+      return bytes; // trailing speech — pass through to avoid phoneme clipping
+    }
+
+    // Noise frame — send silence so Vosk doesn't accumulate garbage input.
     return Uint8List(bytes.length);
   }
 
@@ -110,20 +148,17 @@ class NoiseSuppressor {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  void _updateNoiseProfile(
-      List<double> frame, double frameRms, int sampleCount, double sumSq) {
+  void _updateCalibration(
+      double frameRms, double sumSq, int sampleCount) {
     if (_isCalibrated) return;
 
-    // Per-sample EMA profile (for inspection).
-    if (_noiseProfile.isEmpty) {
-      _noiseProfile = List<double>.filled(frame.length, 0.0);
-    }
-    for (int i = 0; i < frame.length; i++) {
-      _noiseProfile[i] =
-          smoothingAlpha * _noiseProfile[i] + (1.0 - smoothingAlpha) * frame[i].abs();
+    // Skip frames that look like speech — protects the noise floor estimate
+    // when the user starts talking before calibration is complete.
+    if (frameRms > calibrationSpeechCeiling) {
+      debugPrint('[NOISE] Calibration frame skipped (RMS=${frameRms.toStringAsFixed(5)} > ceiling).');
+      return;
     }
 
-    // Accumulate sum-of-squares for RMS noise floor.
     _calibrationSumSq += sumSq;
     _calibrationSampleCount += sampleCount;
     _calibrationFrameCount++;
@@ -132,11 +167,15 @@ class NoiseSuppressor {
       _isCalibrated = true;
       _noiseFloorRms = _calibrationSampleCount > 0
           ? math.sqrt(_calibrationSumSq / _calibrationSampleCount)
-          : 0.001;
+          : 0.001; // fallback: nearly silent floor
+
+      // Guard against a near-zero floor (silent room) which would gate nothing.
+      if (_noiseFloorRms < 0.0005) _noiseFloorRms = 0.0005;
+
       debugPrint(
-          '[NOISE] NOISE SUPPRESSOR CALIBRATED — noise floor RMS: '
+          '[NOISE] CALIBRATED — noise floor RMS: '
           '${_noiseFloorRms.toStringAsFixed(6)}, '
-          'speech threshold RMS: '
+          'speech threshold: '
           '${(_noiseFloorRms * gateThresholdMultiplier).toStringAsFixed(6)}');
     }
   }
