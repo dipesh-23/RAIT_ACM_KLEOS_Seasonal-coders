@@ -22,7 +22,8 @@ class _VoiceScreenState extends State<VoiceScreen>
   late AnimationController _waveCtrl;
   late Animation<double> _pulseAnim;
 
-  String _liveText = '';
+  String _liveText = '';          // text shown live in the transcript box
+  String _accumulatedText = '';   // text committed from previous recording segments
   bool _isRecording = false;
   bool _isCalibrated = false;
   StreamSubscription<String>? _sttSub;
@@ -69,12 +70,17 @@ class _VoiceScreenState extends State<VoiceScreen>
     context.read<TriageProvider>().setRecording(_isRecording);
 
     if (_isRecording) {
-      _liveText = '';
+      // ── START: resume recording — do NOT clear existing text ───────────────
       _isCalibrated = false;
       SttService.instance.isCalibratedNotifier.addListener(_onCalibrated);
       _sttSub?.cancel();
       _sttSub = SttService.instance.transcriptStream.listen((text) {
-        setState(() => _liveText = text);
+        // Append new Vosk text to any previously accumulated text.
+        setState(() {
+          _liveText = _accumulatedText.isEmpty
+              ? text
+              : '${_accumulatedText.trim()} $text';
+        });
       });
       SttService.instance.startListening(
         locale: sttLocale,
@@ -88,10 +94,14 @@ class _VoiceScreenState extends State<VoiceScreen>
         },
       );
     } else {
+      // ── STOP (pause): commit current live text to accumulated buffer ────────
       SttService.instance.isCalibratedNotifier.removeListener(_onCalibrated);
       SttService.instance.stopListening();
+      // Commit whatever was transcribed so far into the accumulated buffer.
       if (_liveText.isNotEmpty) {
-        context.read<TriageProvider>().updateTranscription(_liveText);
+        _accumulatedText = _liveText.trim();
+        // Save to provider so TranscriptionScreen can read it.
+        context.read<TriageProvider>().updateTranscription(_accumulatedText);
       }
     }
   }
@@ -107,11 +117,15 @@ class _VoiceScreenState extends State<VoiceScreen>
   Future<void> _retry() async {
     _sttSub?.cancel();
     await SttService.instance.stopListening();
+    SttService.instance.isCalibratedNotifier.removeListener(_onCalibrated);
     if (mounted) {
       setState(() {
         _liveText = '';
+        _accumulatedText = ''; // explicit restart — wipe everything
         _isRecording = false;
+        _isCalibrated = false;
       });
+      context.read<TriageProvider>().updateTranscription('');
     }
   }
 
