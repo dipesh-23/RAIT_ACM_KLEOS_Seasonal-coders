@@ -36,6 +36,22 @@ class TriageResult {
     }
   }
 
+  String get levelHindi {
+    switch (category) {
+      case TriageCategory.red:    return 'गंभीर स्थिति';
+      case TriageCategory.yellow: return 'सतर्क रहें';
+      case TriageCategory.green:  return 'सामान्य स्थिति';
+    }
+  }
+
+  String get levelSubtitle {
+    switch (category) {
+      case TriageCategory.red:    return 'तुरंत रेफर करें';
+      case TriageCategory.yellow: return 'पीएचसी में जांच कराएं';
+      case TriageCategory.green:  return 'घर पर देखभाल करें';
+    }
+  }
+
   String categoryLabelForLang(String lang) {
     if (lang == 'hi') return categoryLabel;
     if (lang == 'mr') {

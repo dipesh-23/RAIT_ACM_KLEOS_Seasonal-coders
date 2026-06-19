@@ -11,7 +11,7 @@
 
 ## 🚀 Special Features
 * **100% Offline Architecture:** Designed specifically to function flawlessly in "Airplane Mode" with absolutely zero internet connectivity required.
-* **On-Device Speech-to-Text (Whisper.cpp):** Integrates the localized Whisper `ggml-tiny` model via FFI to transcribe multilingual audio locally on the phone.
+* **On-Device Speech-to-Text:** Uses Android's native offline speech recognition to transcribe multilingual audio locally on the phone without internet.
 * **On-Device Semantic NLP (TFLite):** Uses a highly-compressed `MiniLM-L6-v2` TensorFlow Lite model to mathematically map spoken words to standard clinical anchors (e.g., mapping "chest is hurting badly" to "Chest pain").
 * **Native Voice Output (TTS):** The app reads out questions, instructions, and triage results in the local language, assisting workers with lower reading literacy.
 * **Epidemic Alert System:** Continuously monitors recent local offline scans. If a sudden cluster of specific high-risk symptoms is detected (e.g., multiple fever/rash cases in 48 hours), it triggers a local epidemic warning.
@@ -25,4 +25,4 @@
 1. **True Zero-Connectivity Design:** While most healthcare apps fail in remote Indian villages due to poor networks, this app’s AI models are fully embedded within the APK, guaranteeing uninterrupted service anywhere.
 2. **Voice-First, Low-Friction UX:** Replaces exhaustive, intimidating 50-field medical questionnaires with a simple, conversational audio interface that matches the natural workflow of a community health worker.
 3. **Absolute Data Privacy:** Because all AI transcription and NLP processing occurs locally on the silicon of the smartphone, sensitive patient medical data and voice recordings never hit the cloud.
-4. **Hardware Optimized for the Field:** The combination of a 75MB Whisper model and a lightweight TFLite model ensures that cutting-edge AI runs smoothly even on the low-end, budget Android smartphones typically distributed to ASHA workers.
+4. **Hardware Optimized for the Field:** The combination of native offline STT and a lightweight TFLite model ensures that cutting-edge AI runs smoothly even on the low-end, budget Android smartphones typically distributed to ASHA workers.

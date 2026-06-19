@@ -53,16 +53,10 @@ class EpidemicService {
       if (s.triageLevel == 'YELLOW') yellowCount++;
       if (s.triageLevel == 'GREEN') greenCount++;
 
-      if (s.confirmedConcepts?.isNotEmpty == true && s.confirmedConcepts != '[]') {
-        try {
-          final List<dynamic> conceptsList = jsonDecode(s.confirmedConcepts!);
-          for (var item in conceptsList) {
-            final key = item['conceptKey'] as String?;
-            if (key != null) {
-              conceptFreqs[key] = (conceptFreqs[key] ?? 0) + 1;
-            }
-          }
-        } catch (_) {}
+      if (s.confirmedConcepts.isNotEmpty) {
+        for (var concept in s.confirmedConcepts) {
+          conceptFreqs[concept] = (conceptFreqs[concept] ?? 0) + 1;
+        }
       }
     }
 

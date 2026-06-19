@@ -108,18 +108,10 @@ class DashboardService {
     Map<String, String> hindiLabels = {};
 
     for (var session in sessions) {
-      if (session.confirmedConcepts?.isNotEmpty == true && session.confirmedConcepts != '[]') {
-        try {
-          final List<dynamic> conceptsList = jsonDecode(session.confirmedConcepts!);
-          for (var item in conceptsList) {
-            final key = item['conceptKey'] as String?;
-            final hindi = item['hindiLabel'] as String?;
-            if (key != null) {
-              frequencies[key] = (frequencies[key] ?? 0) + 1;
-              if (hindi != null) hindiLabels[key] = hindi;
-            }
-          }
-        } catch (_) {}
+      if (session.confirmedConcepts.isNotEmpty) {
+        for (var concept in session.confirmedConcepts) {
+          frequencies[concept] = (frequencies[concept] ?? 0) + 1;
+        }
       }
     }
 

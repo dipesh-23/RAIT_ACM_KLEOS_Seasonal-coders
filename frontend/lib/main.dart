@@ -8,6 +8,8 @@ import 'services/database_service.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/session_start_screen.dart';
 import 'screens/language_selection_screen.dart';
+import 'services/embedding_service.dart';
+import 'services/triage_engine.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,17 +27,31 @@ void main() async {
   await OnboardingService.instance.init();
   await DatabaseService.instance.database;
 
-  runApp(const AshaTriageApp());
+  final triageProvider = TriageProvider();
+
+  Future.microtask(() async {
+    try {
+      await EmbeddingService.instance.initialize();
+      await TriageEngine.instance.initialize();
+      triageProvider.servicesReady = true;
+    } catch (e) {
+      triageProvider.setInitError(e.toString());
+      print('INIT ERROR: $e');
+    }
+  });
+
+  runApp(AshaTriageApp(triageProvider: triageProvider));
 }
 
 class AshaTriageApp extends StatelessWidget {
-  const AshaTriageApp({super.key});
+  final TriageProvider triageProvider;
+  const AshaTriageApp({super.key, required this.triageProvider});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => TriageProvider()),
+        ChangeNotifierProvider.value(value: triageProvider),
       ],
       child: MaterialApp(
         title: 'ASHA ट्राइएज',

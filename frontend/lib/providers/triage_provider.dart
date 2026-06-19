@@ -6,6 +6,7 @@ import '../models/detected_concept.dart';
 import '../services/database_service.dart';
 import '../services/triage_engine.dart';
 import '../utils/app_strings.dart';
+import '../screens/result_screen.dart';
 
 class TriageProvider extends ChangeNotifier {
   SessionModel? _currentSession;
@@ -14,10 +15,28 @@ class TriageProvider extends ChangeNotifier {
   bool _isRecording = false;
   bool _isProcessing = false;
   String _selectedLanguage = 'hi';
+  String currentTranscript = '';
+  bool _servicesReady = false;
+
+  bool get servicesReady => _servicesReady;
+
+  set servicesReady(bool value) {
+    _servicesReady = value;
+    notifyListeners();
+  }
+
+  String? initError;
+  void setInitError(String error) {
+    initError = error;
+    notifyListeners();
+  }
+
+  bool isAnalyzing = false;
+  bool safetyNetTriggered = false;
 
   
   // Dynamic Confirmation state
-  List<DetectedConcept> _detectedConcepts = [];
+  List<DetectedConcept> detectedConcepts = [];
   int _currentConfirmationStep = 0;
   final List<bool?> _confirmationAnswers = [];
 
@@ -35,8 +54,14 @@ class TriageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setTranscript(String text) {
+    currentTranscript = text;
+    notifyListeners();
+    analyzeTranscript();
+  }
+
   List<String> get confirmationQuestions {
-    final questions = _detectedConcepts.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
+    final questions = detectedConcepts.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
     questions.add(AppStrings.get('safety_net_q', _selectedLanguage)); // Mandatory safety net
     return questions;
   }
@@ -45,7 +70,7 @@ class TriageProvider extends ChangeNotifier {
     _currentSession = session;
     _transcribedText = '';
     _currentResult = null;
-    _detectedConcepts = [];
+    detectedConcepts = [];
     _currentConfirmationStep = 0;
     _confirmationAnswers.clear();
     DatabaseService.instance.insertSession(session);
@@ -70,6 +95,36 @@ class TriageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> analyzeTranscript() async {
+    isAnalyzing = true;
+    notifyListeners();
+
+    await Future.delayed(const Duration(milliseconds: 500)); // allow UI to paint
+
+    final ageGroup = _currentSession?.patientAgeGroup?.name ?? 'ADULT';
+    final duration = _currentSession?.symptomDuration?.name ?? 'TODAY';
+
+    try {
+      detectedConcepts = TriageEngine.instance.analyzeText(
+        currentTranscript,
+        ageGroup,
+        duration,
+      );
+    } catch (e) {
+      debugPrint('Error analyzing text: $e');
+      detectedConcepts = [];
+    }
+
+    _currentConfirmationStep = 0;
+    _confirmationAnswers.clear();
+    for (int i = 0; i < confirmationQuestions.length; i++) {
+      _confirmationAnswers.add(null);
+    }
+
+    isAnalyzing = false;
+    notifyListeners();
+  }
+
   Future<void> analyzeTranscription() async {
     _isProcessing = true;
     notifyListeners();
@@ -78,14 +133,14 @@ class TriageProvider extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 500));
     
     try {
-      _detectedConcepts = TriageEngine.instance.analyzeText(
+      detectedConcepts = TriageEngine.instance.analyzeText(
         _transcribedText,
         _currentSession?.patientAgeGroup?.name ?? 'ADULT',
         _currentSession?.symptomDuration?.name ?? 'TODAY',
       );
     } catch (e) {
       debugPrint('Error analyzing text: $e');
-      _detectedConcepts = [];
+      detectedConcepts = [];
     }
     
     _currentConfirmationStep = 0;
@@ -105,8 +160,8 @@ class TriageProvider extends ChangeNotifier {
     _confirmationAnswers[_currentConfirmationStep] = answer;
     
     // Also update the underlying concept, unless it's the safety net question
-    if (_detectedConcepts.isNotEmpty && _currentConfirmationStep < _detectedConcepts.length) {
-      _detectedConcepts[_currentConfirmationStep].confirmed = answer;
+    if (detectedConcepts.isNotEmpty && _currentConfirmationStep < detectedConcepts.length) {
+      detectedConcepts[_currentConfirmationStep].confirmed = answer;
     }
     
     notifyListeners();
@@ -127,37 +182,36 @@ class TriageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  TriageResult computeFinalTriage() {
-    // The safety net question is always the last question in the confirmationAnswers list
-    bool safetyNet = false;
-    if (_confirmationAnswers.isNotEmpty) {
-      safetyNet = _confirmationAnswers.last == true;
-    }
-    
+  Future<void> scoreAndNavigate() async {
     final result = TriageEngine.instance.scoreTriage(
-      concepts: _detectedConcepts,
-      safetyNetTriggered: safetyNet,
+      concepts: detectedConcepts,
+      safetyNetTriggered: safetyNetTriggered,
       sessionId: _currentSession?.id ?? 'unknown',
-      transcribedText: _transcribedText,
+      transcribedText: currentTranscript,
       ageGroup: _currentSession?.patientAgeGroup?.name ?? 'ADULT',
       duration: _currentSession?.symptomDuration?.name ?? 'TODAY',
     );
     
     setTriageResult(result);
 
-    // Save final session state
-    if (_currentSession != null) {
-      final confirmedConceptsList = _detectedConcepts.where((c) => c.confirmed).map((c) => c.conceptKey).toList();
-      
-      _currentSession = _currentSession!.copyWith(
-        isCompleted: true,
-        confirmedConcepts: confirmedConceptsList,
-        triageLevel: result.category.name,
-      );
-      DatabaseService.instance.updateSession(_currentSession!);
-    }
+    final confirmedLabels = detectedConcepts.where((c) => c.confirmed).map((c) => c.hindiLabel).toList();
+    final confirmedJson = jsonEncode(confirmedLabels);
+    final sessionCode = _currentSession?.sessionCode ?? result.sessionId;
+    
+    await DatabaseService.instance.saveSession(
+      id: _currentSession?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      sessionCode: sessionCode,
+      workerName: _currentSession?.ashaWorkerName ?? 'Unknown',
+      patientAgeGroup: _currentSession?.patientAgeGroup?.name ?? 'ADULT',
+      symptomDuration: _currentSession?.symptomDuration?.name ?? 'TODAY',
+      rawTranscription: currentTranscript,
+      confirmedConcepts: confirmedJson,
+      triageLevel: result.category.name,
+      timestamp: DateTime.now().toIso8601String(),
+      referralGenerated: 0,
+    );
 
-    return result;
+    print('SESSION SAVED $sessionCode');
   }
 
   void markReferralGenerated() {
@@ -174,7 +228,7 @@ class TriageProvider extends ChangeNotifier {
     _transcribedText = '';
     _isRecording = false;
     _isProcessing = false;
-    _detectedConcepts = [];
+    detectedConcepts = [];
     _currentConfirmationStep = 0;
     _confirmationAnswers.clear();
     notifyListeners();

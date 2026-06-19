@@ -27,7 +27,7 @@ class EmbeddingService {
   // ── Initialisation ──────────────────────────────────────────────────────────
 
   /// Call once before using [getEmbedding]. Loads model and vocab from assets.
-  Future<void> init() async {
+  Future<void> initialize() async {
     if (_isInitialized) return;
     await Future.wait([_loadModel(), _loadVocab()]);
     _isInitialized = true;
@@ -51,12 +51,12 @@ class EmbeddingService {
 
   /// Returns a 384-dimensional L2-normalised embedding for [text].
   ///
-  /// Throws [StateError] if [init] has not been called (or has not completed).
+  /// Throws [StateError] if [initialize] has not been called (or has not completed).
   List<double> getEmbedding(String text) {
     if (!_isInitialized) {
       throw StateError(
         'EmbeddingService is not initialised. '
-        'Await EmbeddingService.init() before calling getEmbedding().',
+        'Await EmbeddingService.initialize() before calling getEmbedding().',
       );
     }
 
