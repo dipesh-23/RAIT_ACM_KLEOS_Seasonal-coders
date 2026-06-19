@@ -40,6 +40,12 @@ class SttService {
   bool _isListening = false;
   bool _isStarting = false; // Guard against concurrent startListening calls
 
+  // Running transcript for the current recording session.
+  // Finals are appended here so the stream always emits the FULL growing text.
+  // Partials are displayed on top of this without modifying it.
+  // Reset only on explicit startListening — never on stopListening or pauses.
+  String _sessionTranscript = '';
+
   final StreamController<String> _transcriptController =
       StreamController<String>.broadcast();
   final ValueNotifier<bool> isListeningNotifier = ValueNotifier<bool>(false);
@@ -110,7 +116,10 @@ class SttService {
     _isStarting = true;
     _currentOnError = onError;
 
-    // Prompt 9: reset noise suppressor so each session re-calibrates.
+    // Reset session transcript for this new recording session.
+    _sessionTranscript = '';
+
+    // Reset noise suppressor so each session re-calibrates.
     _noiseSuppressor.reset();
     isCalibratedNotifier.value = false;
 
@@ -187,17 +196,21 @@ class SttService {
     isListeningNotifier.value = false;
     debugPrint('[VOSK] Stopping listener...');
 
-    // Flush remaining audio.
+    // Flush any remaining audio in Vosk's buffer into the session transcript.
     try {
       if (_recognizer != null) {
         final text = parseFinal(await _recognizer!.getFinalResult());
-        if (text.isNotEmpty) pushTranscript(text);
+        if (text.isNotEmpty) {
+          _sessionTranscript =
+              _sessionTranscript.isEmpty ? text : '${_sessionTranscript.trim()} $text';
+          pushTranscript(_sessionTranscript);
+        }
       }
     } catch (_) {}
 
     await _cleanupRecognizer();
     isCalibratedNotifier.value = false;
-    return '';
+    return _sessionTranscript;
   }
 
   // ---------------------------------------------------------------------------
@@ -267,21 +280,37 @@ class SttService {
   // ---------------------------------------------------------------------------
 
   /// Feeds [bytes] into Vosk and emits any transcript result.
-  /// After Vosk returns, drains [_pendingChunk] if a chunk arrived while
-  /// this call was in progress (1-slot queue, no mid-word gaps).
+  ///
+  /// **Final results** are appended to [_sessionTranscript] and the full
+  /// accumulated text is pushed to the stream.
+  ///
+  /// **Partial results** are emitted as [_sessionTranscript] + the partial
+  /// without touching [_sessionTranscript], so a Vosk-internal reset after
+  /// a pause never loses previously recognised words.
   Future<void> _processChunk(Uint8List bytes) async {
     _processingChunk = true;
     try {
       if (_recognizer == null) return;
-      final bool isFinal =
-          await _recognizer!.acceptWaveformBytes(bytes);
+      final bool isFinal = await _recognizer!.acceptWaveformBytes(bytes);
 
       if (isFinal) {
         final text = parseFinal(await _recognizer!.getFinalResult());
-        if (text.isNotEmpty) pushTranscript(text);
+        if (text.isNotEmpty) {
+          // Append to the running session transcript — never replace it.
+          _sessionTranscript = _sessionTranscript.isEmpty
+              ? text
+              : '${_sessionTranscript.trim()} $text';
+          pushTranscript(_sessionTranscript);
+        }
       } else {
         final partial = parsePartial(await _recognizer!.getPartialResult());
-        if (partial.isNotEmpty) pushTranscript(partial);
+        // Emit full session text + current partial so the display never shrinks.
+        final display = _sessionTranscript.isEmpty
+            ? partial
+            : partial.isEmpty
+                ? _sessionTranscript
+                : '${_sessionTranscript.trim()} $partial';
+        if (display.isNotEmpty) pushTranscript(display);
       }
     } catch (e) {
       debugPrint('[VOSK] chunk processing error: $e');
@@ -296,6 +325,7 @@ class SttService {
       await _processChunk(pending);
     }
   }
+
 
   // ---------------------------------------------------------------------------
   // Cleanup

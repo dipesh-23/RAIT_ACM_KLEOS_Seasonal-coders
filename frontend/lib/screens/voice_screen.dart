@@ -22,8 +22,7 @@ class _VoiceScreenState extends State<VoiceScreen>
   late AnimationController _waveCtrl;
   late Animation<double> _pulseAnim;
 
-  String _liveText = '';          // text shown live in the transcript box
-  String _accumulatedText = '';   // text committed from previous recording segments
+  String _liveText = ''; // always the full growing transcript from SttService
   bool _isRecording = false;
   bool _isCalibrated = false;
   StreamSubscription<String>? _sttSub;
@@ -70,17 +69,13 @@ class _VoiceScreenState extends State<VoiceScreen>
     context.read<TriageProvider>().setRecording(_isRecording);
 
     if (_isRecording) {
-      // ── START: resume recording — do NOT clear existing text ───────────────
+      // START: SttService owns the full growing transcript — just display it.
       _isCalibrated = false;
       SttService.instance.isCalibratedNotifier.addListener(_onCalibrated);
       _sttSub?.cancel();
       _sttSub = SttService.instance.transcriptStream.listen((text) {
-        // Append new Vosk text to any previously accumulated text.
-        setState(() {
-          _liveText = _accumulatedText.isEmpty
-              ? text
-              : '${_accumulatedText.trim()} $text';
-        });
+        // SttService always emits the full accumulated text — just show it.
+        if (mounted) setState(() => _liveText = text);
       });
       SttService.instance.startListening(
         locale: sttLocale,
@@ -94,14 +89,11 @@ class _VoiceScreenState extends State<VoiceScreen>
         },
       );
     } else {
-      // ── STOP (pause): commit current live text to accumulated buffer ────────
+      // STOP: save current text to provider so TranscriptionScreen can read it.
       SttService.instance.isCalibratedNotifier.removeListener(_onCalibrated);
       SttService.instance.stopListening();
-      // Commit whatever was transcribed so far into the accumulated buffer.
       if (_liveText.isNotEmpty) {
-        _accumulatedText = _liveText.trim();
-        // Save to provider so TranscriptionScreen can read it.
-        context.read<TriageProvider>().updateTranscription(_accumulatedText);
+        context.read<TriageProvider>().updateTranscription(_liveText.trim());
       }
     }
   }
@@ -121,7 +113,6 @@ class _VoiceScreenState extends State<VoiceScreen>
     if (mounted) {
       setState(() {
         _liveText = '';
-        _accumulatedText = ''; // explicit restart — wipe everything
         _isRecording = false;
         _isCalibrated = false;
       });
