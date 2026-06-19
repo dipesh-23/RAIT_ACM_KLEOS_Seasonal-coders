@@ -84,6 +84,26 @@ class MainActivity : FlutterActivity() {
             result.success("failed")
           }
         }
+        "openLanguageSettings" -> {
+          try {
+            val intent = Intent(Settings.ACTION_LOCALE_SETTINGS)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            result.success("opened")
+          } catch (e: Exception) {
+            result.success("failed")
+          }
+        }
+        "openInputMethodSettings" -> {
+          try {
+            val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            result.success("opened")
+          } catch (e: Exception) {
+            result.success("failed")
+          }
+        }
         else -> result.notImplemented()
       }
     }

@@ -9,6 +9,7 @@ import '../services/onboarding_service.dart';
 import '../utils/app_strings.dart';
 import 'voice_screen.dart';
 import 'profile_screen.dart';
+import 'language_selection_screen.dart';
 
 class SessionStartScreen extends StatefulWidget {
   const SessionStartScreen({super.key});
@@ -299,6 +300,20 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                     fontSize: 18, fontWeight: FontWeight.w700,
                     color: AppTheme.textDark)),
           ),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+            ),
+            child: Container(
+              width: 38, height: 38,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.translate_rounded, color: AppTheme.primary, size: 20),
+            ),
+          ),
+          const SizedBox(width: 12),
           GestureDetector(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ProfileScreen()),

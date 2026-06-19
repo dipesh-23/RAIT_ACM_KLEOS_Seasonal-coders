@@ -47,8 +47,7 @@ class AshaTriageApp extends StatelessWidget {
   }
 
   Widget _resolveHome() {
-    final svc = OnboardingService.instance;
-    if (!svc.isOnboardingDone) return const LanguageSelectionScreen();
-    return const SessionStartScreen();
+    // Always start with Language Selection for testing
+    return const LanguageSelectionScreen();
   }
 }

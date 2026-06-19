@@ -129,7 +129,7 @@ class SttService {
       };
 
       await _speech.listen(
-        onDevice: true,
+        onDevice: false,
         localeId: localeId,
         partialResults: true,
       );
@@ -169,6 +169,24 @@ class SttService {
     }
   }
 
+  Future<void> openLanguageSettings() async {
+    const channel = MethodChannel('com.asha.triage/settings');
+    try {
+      await channel.invokeMethod('openLanguageSettings');
+    } on PlatformException catch (e) {
+      debugPrint('[STT] Failed to open language settings: $e');
+    }
+  }
+
+  Future<void> openInputMethodSettings() async {
+    const channel = MethodChannel('com.asha.triage/settings');
+    try {
+      await channel.invokeMethod('openInputMethodSettings');
+    } on PlatformException catch (e) {
+      debugPrint('[STT] Failed to open input method settings: $e');
+    }
+  }
+
   Future<void> openGoogleOfflineSpeechSettings() async {
     const platform = MethodChannel('com.asha.triage/settings');
     try {
@@ -178,22 +196,66 @@ class SttService {
     }
   }
 
+  // Resolve the best available locale: requested → hi_IN fallback.
+  // Returns null if no supported locale is found.
+  Future<String?> _resolveLocale(String requested) async {
+    final systemLocales = await _speech.locales();
+    final ids = systemLocales.map((l) => l.localeId).toSet();
+
+    if (ids.contains(requested)) {
+      debugPrint('[STT ACTIVE LOCALE] Using requested locale: $requested');
+      return requested;
+    }
+
+    // Prompt 5: mr_IN fallback to hi_IN
+    if (requested == 'mr_IN') {
+      const fallback = 'hi_IN';
+      if (ids.contains(fallback)) {
+        debugPrint('[STT ACTIVE LOCALE] mr_IN not found — falling back to hi_IN');
+        return fallback;
+      }
+    }
+
+    // No suitable locale found
+    debugPrint('[STT ACTIVE LOCALE] No matching locale found for: $requested');
+    debugPrint('[STT ACTIVE LOCALE] Available locales: ${ids.where((id) => id.startsWith('hi') || id.startsWith('mr') || id.startsWith('en')).toList()}');
+    return null;
+  }
+
   Future<void> startListening({
-    String locale = 'hi-IN',
+    String locale = 'hi_IN',
     Function(String)? onError,
+    void Function(String activeLocale)? onLocaleResolved,
   }) async {
     if (!_isInitialized) {
       await initialize();
     }
     if (_isListening || !_isInitialized) return;
 
-    _isListening = true;
-    isListeningNotifier.value = true;
-    _currentLocale = locale;
     _currentOnError = onError;
     debugPrint('================================');
     debugPrint('[STT DEBUG] Starting listen for locale: $locale');
     debugPrint('================================');
+
+    // Prompt 4 & 5: verify hasDictation, apply fallback
+    final activeLocale = await _resolveLocale(locale);
+    if (activeLocale == null) {
+      debugPrint('[STT] offline_pack_missing — no valid locale for $locale');
+      if (onError != null) {
+        final isMarathi = locale.contains('mr');
+        onError(isMarathi
+            ? 'मराठी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।'
+            : 'हिंदी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।');
+      }
+      return;
+    }
+
+    _isListening = true;
+    isListeningNotifier.value = true;
+    _currentLocale = activeLocale;
+
+    // Notify caller of the actual locale used (so TriageProvider can update)
+    onLocaleResolved?.call(activeLocale);
 
     await _speech.listen(
       onResult: (val) {
@@ -203,8 +265,8 @@ class SttService {
           pushTranscript(val.recognizedWords);
         }
       },
-      onDevice: true,
-      localeId: locale,
+      onDevice: false,
+      localeId: activeLocale,
       cancelOnError: false,
       partialResults: true,
     );
