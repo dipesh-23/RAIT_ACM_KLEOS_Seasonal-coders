@@ -6,17 +6,10 @@ import '../providers/triage_provider.dart';
 import '../utils/app_strings.dart';
 import 'confirmation_screen.dart';
 import 'voice_screen.dart';
-import 'result_screen.dart';
+import 'profile_screen.dart';
 
-class TranscriptionScreen extends StatefulWidget {
+class TranscriptionScreen extends StatelessWidget {
   const TranscriptionScreen({super.key});
-
-  @override
-  State<TranscriptionScreen> createState() => _TranscriptionScreenState();
-}
-
-class _TranscriptionScreenState extends State<TranscriptionScreen> {
-  bool _wasAnalyzing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +19,9 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-              children: [
+      body: SafeArea(
+        child: Column(
+          children: [
             // ── Header ──
             Container(
               color: AppTheme.bgWhite,
@@ -43,13 +34,18 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                       style: GoogleFonts.poppins(
                           fontSize: 18, fontWeight: FontWeight.w700,
                           color: AppTheme.textDark))),
-                  Container(
-                    width: 38, height: 38,
-                    decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        shape: BoxShape.circle),
-                    child: const Icon(Icons.person_rounded,
-                        color: Colors.white, size: 20),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
+                    child: Container(
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(
+                          gradient: AppTheme.primaryGradient,
+                          shape: BoxShape.circle),
+                      child: const Icon(Icons.person_rounded,
+                          color: Colors.white, size: 20),
+                    ),
                   ),
                 ],
               ),
@@ -215,8 +211,13 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              context.read<TriageProvider>().setTranscript(text);
+                            onPressed: () async {
+                              await provider.analyzeTranscription();
+                              if (!context.mounted) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const ConfirmationScreen()),
+                              );
                             },
                             icon: const Icon(Icons.check_rounded, size: 18),
                             label: Text(AppStrings.get('correct_continue', lang),
@@ -237,45 +238,6 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
             ),
           ],
         ),
-      ),
-      Consumer<TriageProvider>(
-        builder: (context, provider, child) {
-          if (provider.isAnalyzing) {
-            _wasAnalyzing = true;
-            return Container(
-              color: Colors.black87,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: AppTheme.primary),
-                    const SizedBox(height: 20),
-                    Text('विश्लेषण हो रहा है',
-                        style: GoogleFonts.poppins(
-                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            );
-          } else if (_wasAnalyzing) {
-            _wasAnalyzing = false;
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              if (provider.detectedConcepts.isEmpty) {
-                await provider.scoreAndNavigate();
-                if (mounted) {
-                  Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ResultScreen()));
-                }
-              } else {
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ConfirmationScreen()));
-              }
-            });
-          }
-          return const SizedBox.shrink();
-        },
-      ),
-      ],
       ),
     );
   }

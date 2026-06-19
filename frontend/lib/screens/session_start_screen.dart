@@ -6,10 +6,10 @@ import '../app_theme.dart';
 import '../models/session_model.dart';
 import '../providers/triage_provider.dart';
 import '../services/onboarding_service.dart';
+import '../services/database_service.dart';
 import '../utils/app_strings.dart';
 import 'voice_screen.dart';
 import 'profile_screen.dart';
-import 'language_selection_screen.dart';
 
 class SessionStartScreen extends StatefulWidget {
   const SessionStartScreen({super.key});
@@ -27,7 +27,24 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
   AgeGroup? _selectedAge;
   SymptomDuration? _selectedDuration;
 
+  Map<String, int> _stats = {};
+
   final String workerName = OnboardingService.instance.workerName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    final stats = await DatabaseService.instance.getWorkerStats();
+    if (mounted) {
+      setState(() {
+        _stats = stats;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -300,17 +317,28 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
                     fontSize: 18, fontWeight: FontWeight.w700,
                     color: AppTheme.textDark)),
           ),
-          GestureDetector(
-            onTap: () => Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.translate_rounded, color: AppTheme.primary, size: 20),
+            child: DropdownButton<String>(
+              value: lang,
+              underline: const SizedBox(),
+              icon: Icon(Icons.language_rounded, color: AppTheme.primary, size: 18),
+              style: GoogleFonts.poppins(
+                  color: AppTheme.primary, fontSize: 13, fontWeight: FontWeight.w600),
+              items: const [
+                DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
+                DropdownMenuItem(value: 'mr', child: Text('मराठी')),
+                DropdownMenuItem(value: 'en', child: Text('English')),
+              ],
+              onChanged: (val) {
+                if (val != null) {
+                  context.read<TriageProvider>().setLanguage(val);
+                }
+              },
             ),
           ),
           const SizedBox(width: 12),
@@ -430,36 +458,54 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
   }
 
   Widget _buildStatsRow(String lang) {
+    final today = _stats['today'] ?? 0;
+    final critical = _stats['critical'] ?? 0;
+    final normal = (_stats['total'] ?? 0) - critical;
+
     return Row(
       children: [
-        Expanded(child: _statCard('12', AppStrings.get('today_patients', lang), Icons.people_alt_rounded,
-            const Color(0xFF6C63FF))),
+        Expanded(child: _statCard('$today', AppStrings.get('today_patients', lang), Icons.people_alt_rounded,
+            const Color(0xFF6C63FF), AppTheme.primaryGradient)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard('3', AppStrings.get('critical_cases', lang), Icons.warning_amber_rounded,
-            AppTheme.triageRed)),
+        Expanded(child: _statCard('$critical', AppStrings.get('critical_cases', lang), Icons.warning_amber_rounded,
+            AppTheme.triageRed, AppTheme.redGradient)),
         const SizedBox(width: 12),
-        Expanded(child: _statCard('9', AppStrings.get('normal_cases', lang), Icons.check_circle_outline_rounded,
-            AppTheme.triageGreen)),
+        Expanded(child: _statCard('$normal', AppStrings.get('normal_cases', lang), Icons.check_circle_outline_rounded,
+            AppTheme.triageGreen, AppTheme.greenGradient)),
       ],
     );
   }
 
-  Widget _statCard(String num, String label, IconData icon, Color color) {
+  Widget _statCard(String num, String label, IconData icon, Color color, Gradient gradient) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
         color: AppTheme.bgWhite,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.cardShadow,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.15),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          )
+        ],
+        border: Border.all(color: color.withOpacity(0.1), width: 1.5),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              gradient: gradient,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(height: 10),
           Text(num, style: GoogleFonts.poppins(
-              color: color, fontSize: 20, fontWeight: FontWeight.w700)),
+              color: color, fontSize: 24, fontWeight: FontWeight.w800)),
           Text(label, style: GoogleFonts.poppins(
-              color: AppTheme.textLight, fontSize: 10, fontWeight: FontWeight.w500),
+              color: AppTheme.textMedium, fontSize: 11, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center),
         ],
       ),

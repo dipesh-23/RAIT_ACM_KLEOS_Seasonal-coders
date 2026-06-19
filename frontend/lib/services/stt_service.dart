@@ -16,6 +16,7 @@ class SttService {
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
+  bool _userStopped = false;
   final StreamController<String> _transcriptController =
       StreamController<String>.broadcast();
   final ValueNotifier<bool> isListeningNotifier = ValueNotifier<bool>(false);
@@ -42,7 +43,10 @@ class SttService {
           if (_testErrorListener != null) {
             _testErrorListener!(val);
           }
-          _handleGlobalError(val);
+          // Only handle errors if user hasn't explicitly stopped
+          if (!_userStopped) {
+            _handleGlobalError(val);
+          }
         },
         onStatus: (val) {
           debugPrint('[STT DEBUG STATUS LOG]: $val');
@@ -50,8 +54,18 @@ class SttService {
             isListeningNotifier.value = true;
             _isListening = true;
           } else if (val == 'notListening' || val == 'done') {
-            isListeningNotifier.value = false;
-            _isListening = false;
+            // Auto-restart if user hasn't stopped it
+            if (!_userStopped) {
+              debugPrint('[STT DEBUG] Auto-restarting listening to keep mic open');
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (!_userStopped) {
+                  _startListeningInternal(_currentLocale);
+                }
+              });
+            } else {
+              isListeningNotifier.value = false;
+              _isListening = false;
+            }
           }
           
           if (_testStatusListener != null) {
@@ -83,8 +97,8 @@ class SttService {
       _isListening = false;
       final isMarathi = _currentLocale.toLowerCase().contains('mr');
       final message = isMarathi
-          ? "मराठी ऑफलाइन स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।"
-          : "हिंदी ऑफलाइन स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।";
+          ? "मराठी स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।"
+          : "हिंदी स्पीच मॉडल नहीं मिला। सेटिंग्स में डाउनलोड करें।";
       if (_currentOnError != null) {
         _currentOnError!(message);
       }
@@ -93,15 +107,23 @@ class SttService {
                val.errorMsg == 'error_client' || 
                val.errorMsg == 'error_server_disconnected' || 
                val.errorMsg == 'error_network') {
-      _isListening = false;
-      _speech.stop();
-
-      String userMessage = _currentLocale.toLowerCase().contains('mr')
-          ? 'ऑफलाइन मॉडल नहीं मिला。\nOffline model not found.\n\nGoogle App → Voice →\nOffline speech recognition →\nDownload Marathi (India)'
-          : 'ऑफलाइन मॉडल नहीं मिला。\nOffline model not found.\n\nGoogle App → Voice →\nOffline speech recognition →\nDownload Hindi (India)';
-
-      if (_currentOnError != null) {
-        _currentOnError!(userMessage);
+      
+      // We will try to auto-restart the mic smoothly instead of stopping entirely.
+      if (!_userStopped) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!_userStopped) {
+            _startListeningInternal(_currentLocale);
+          }
+        });
+      }
+    } else if (val.errorMsg == 'error_no_match' || val.errorMsg == 'error_speech_timeout') {
+      // Ignore silence timeouts and just restart
+      if (!_userStopped) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (!_userStopped) {
+            _startListeningInternal(_currentLocale);
+          }
+        });
       }
     }
   }
@@ -132,7 +154,7 @@ class SttService {
       };
 
       await _speech.listen(
-        onDevice: true,
+        onDevice: false,
         localeId: localeId,
         partialResults: true,
       );
@@ -234,20 +256,20 @@ class SttService {
     }
     if (_isListening || !_isInitialized) return;
 
+    _userStopped = false;
     _currentOnError = onError;
     debugPrint('================================');
     debugPrint('[STT DEBUG] Starting listen for locale: $locale');
     debugPrint('================================');
 
-    // Prompt 4 & 5: verify hasDictation, apply fallback
     final activeLocale = await _resolveLocale(locale);
     if (activeLocale == null) {
       debugPrint('[STT] offline_pack_missing — no valid locale for $locale');
       if (onError != null) {
         final isMarathi = locale.contains('mr');
         onError(isMarathi
-            ? 'मराठी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।'
-            : 'हिंदी ऑफलाइन स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।');
+            ? 'मराठी स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।'
+            : 'हिंदी स्पीच पैक नहीं मिला।\nकृपया डिवाइस भाषा सेटिंग्स से जोड़ें।');
       }
       return;
     }
@@ -259,6 +281,12 @@ class SttService {
     // Notify caller of the actual locale used (so TriageProvider can update)
     onLocaleResolved?.call(activeLocale);
 
+    await _startListeningInternal(activeLocale);
+  }
+
+  Future<void> _startListeningInternal(String activeLocale) async {
+    if (_userStopped) return;
+    
     await _speech.listen(
       onResult: (val) {
         debugPrint('[STT DEBUG RESULT]: ${val.recognizedWords}');
@@ -267,15 +295,17 @@ class SttService {
           pushTranscript(val.recognizedWords);
         }
       },
-      onDevice: true,
+      onDevice: false, // Allows seamless switching between online and offline
       listenMode: stt.ListenMode.dictation,
       localeId: activeLocale,
       cancelOnError: false,
       partialResults: true,
+      pauseFor: const Duration(minutes: 5), // Wait up to 5 minutes without speech
     );
   }
 
   Future<String> stopListening() async {
+    _userStopped = true;
     _isListening = false;
     isListeningNotifier.value = false;
     debugPrint('[STT] Stopped listening');
@@ -291,3 +321,4 @@ class SttService {
     _transcriptController.close();
   }
 }
+

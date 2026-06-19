@@ -1,9 +1,4 @@
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:speech_to_text/speech_to_text.dart';
-import 'stt_service.dart';
-
-
 
 class OnboardingService {
   static const _keyOnboardingDone = 'onboarding_done';
@@ -21,8 +16,6 @@ class OnboardingService {
   }
 
   bool get isOnboardingDone => _prefs.getBool(_keyOnboardingDone) ?? false;
-  
-  bool isOnboardingComplete() => isOnboardingDone;
 
   Future<void> completeOnboarding(String workerName, {String language = 'hi'}) async {
     await _prefs.setBool(_keyOnboardingDone, true);
@@ -30,25 +23,8 @@ class OnboardingService {
     await _prefs.setString(_keyLanguage, language);
   }
 
-  Future<void> markOnboardingComplete() => completeOnboarding('ASHA कार्यकर्ता');
-
-  String get workerName => _prefs.getString(_keyWorkerName) ?? 'ASHA कार्यकर्ता';
+  String get workerName => _prefs.getString(_keyWorkerName) ?? 'ASHA Worker';
   String get language   => _prefs.getString(_keyLanguage) ?? 'hi';
 
   Future<void> reset() async => _prefs.clear();
-
-
-
-  Future<void> openGoogleOfflineSpeechSettings() async {
-    const platform = MethodChannel('com.asha.triage/settings');
-    try {
-      await platform.invokeMethod('openGoogleOfflineSpeech');
-    } catch (e) {
-      // fallback handled in MainActivity
-    }
-  }
-
-  Future<void> openSpeechSettings() async {
-    await SttService.instance.openSpeechLanguageSettings();
-  }
 }

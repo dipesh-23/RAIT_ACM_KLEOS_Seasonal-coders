@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
 import '../services/database_service.dart';
 import '../services/onboarding_service.dart';
+import 'package:open_filex/open_filex.dart';
 import '../models/session_model.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, int> _stats = {};
   List<SessionModel> _recentSessions = [];
   bool _isLoading = true;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -25,7 +27,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadData() async {
     final stats = await DatabaseService.instance.getWorkerStats();
-    final sessions = await DatabaseService.instance.getRecentSessions(limit: 10);
+    final sessions = _searchQuery.trim().isEmpty
+        ? await DatabaseService.instance.getRecentSessions(limit: 50)
+        : await DatabaseService.instance.searchSessions(_searchQuery.trim());
     if (mounted) {
       setState(() {
         _stats = stats;
@@ -98,22 +102,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _buildStatsGrid(),
                             const SizedBox(height: 24),
 
-                            // ── Recent Patients ──
+                            // ── Patient List Header ──
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Recent Patients',
+                                Text('Patients List',
                                     style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
                                         color: AppTheme.textDark)),
-                                Text('Last 10',
+                                Text(_searchQuery.isEmpty ? 'Recent 50' : 'Search Results',
                                     style: GoogleFonts.poppins(
                                         fontSize: 12,
                                         color: AppTheme.textLight)),
                               ],
                             ),
                             const SizedBox(height: 12),
+                            
+                            // ── Search Bar ──
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppTheme.divider),
+                              ),
+                              child: TextField(
+                                onChanged: (val) {
+                                  _searchQuery = val;
+                                  _loadData();
+                                },
+                                decoration: InputDecoration(
+                                  hintText: 'Search by name or ID...',
+                                  hintStyle: GoogleFonts.poppins(fontSize: 14, color: AppTheme.textLight),
+                                  prefixIcon: Icon(Icons.search_rounded, color: AppTheme.textMedium),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
                             _buildRecentPatients(),
                             const SizedBox(height: 24),
                           ],
@@ -441,19 +469,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: levelColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
+              if (session.slipFilePath != null)
+                IconButton(
+                  icon: Icon(Icons.picture_as_pdf_rounded, color: AppTheme.primary, size: 24),
+                  tooltip: 'View Referral Slip',
+                  onPressed: () {
+                    OpenFilex.open(session.slipFilePath!);
+                  },
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: levelColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(levelLabel,
+                      style: GoogleFonts.poppins(
+                          color: levelColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
                 ),
-                child: Text(levelLabel,
-                    style: GoogleFonts.poppins(
-                        color: levelColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600)),
-              ),
             ],
           ),
         ),

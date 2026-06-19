@@ -99,13 +99,9 @@ class TriageEngine {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // ── 1. Load and parse clinical_anchors.json ──────────────────────────────
-    final rawJson = await rootBundle
-        .loadString('assets/anchors/clinical_anchors.json');
-    final Map<String, dynamic> data =
-        jsonDecode(rawJson) as Map<String, dynamic>;
+    final rawJson = await rootBundle.loadString('assets/anchors/clinical_anchors.json');
+    final Map<String, dynamic> data = jsonDecode(rawJson) as Map<String, dynamic>;
 
-    // ── 2. Parse anchors, combination_rules, and negation_patterns ───────────
     final anchorsList = data['anchors'] as List<dynamic>;
     for (final entry in anchorsList) {
       final concept = entry as Map<String, dynamic>;
@@ -124,165 +120,106 @@ class TriageEngine {
     }
 
     _negationPatterns = data['negation_patterns'] as Map<String, dynamic>;
-
-    // ── 3. Pre-compute embeddings for every anchor phrase ────────────────────
-    for (final anchor in _anchors) {
-      final phrase = anchor['phrase'] as String;
-      _anchorEmbeddings[phrase] =
-          EmbeddingService.instance.getEmbedding(phrase);
-    }
-
     _isInitialized = true;
   }
 
-  // ── Utility methods ──────────────────────────────────────────────────────────
+  // Helper dictionary for keyword matching (English & Hindi)
+  static const Map<String, List<String>> _keywordDictionary = {
+    'breathing difficulty': ['breath', 'सांस', 'साँस', 'दम', 'asthma'],
+    'unconscious unresponsive': ['unconscious', 'faint', 'बेहोश', 'गिर'],
+    'seizure convulsion': ['seizure', 'दौरा', 'दौरे', 'ऐंठन', 'चक्कर'],
+    'severe bleeding': ['bleed', 'blood', 'खून', 'रक्त'],
+    'chest pain': ['chest', 'heart', 'सीने', 'सीना', 'छाती', 'दर्द'],
+    'newborn emergency': ['newborn', 'नवजात', 'पैदा'],
+    'labor delivery complication': ['labor', 'delivery', 'प्रसव', 'डिलीवरी'],
+    'not eating not drinking': ['eat', 'drink', 'खाना', 'पीना'],
+    'high fever many days': ['fever', 'बुखार', 'ताप'],
+    'repeated vomiting': ['vomit', 'उल्टी', 'उल्टियां'],
+    'severe diarrhea': ['diarrhea', 'दस्त', 'जुलाब'],
+    'severe headache': ['headache', 'head', 'सिर', 'सर', 'दर्द'],
+    'pregnancy problem': ['pregnancy', 'pregnant', 'गर्भवती', 'गर्भावस्था'],
+    'child not active lethargic': ['lethargic', 'सुस्त', 'कमजोर'],
+    'swelling body': ['swelling', 'सूजन', 'सूज'],
+    'mild fever': ['fever', 'बुखार', 'ताप'],
+    'common cold cough': ['cold', 'cough', 'सर्दी', 'खांसी', 'ज़ुकाम'],
+    'minor body ache': ['ache', 'pain', 'दर्द', 'बदन', 'शरीर'],
+    'minor stomach ache': ['stomach', 'पेट', 'दर्द'],
+  };
 
-  /// Computes the cosine similarity between two vectors [a] and [b].
-  ///
-  /// Unlike a dot-product shortcut, this divides by the product of both L2
-  /// norms so it works correctly with non-normalised vectors too.
-  /// Returns 0.0 if either vector has a zero norm (avoids division by zero).
-  double cosine(List<double> a, List<double> b) {
-    double dot   = 0.0;
-    double normA = 0.0;
-    double normB = 0.0;
-
-    for (int i = 0; i < a.length; i++) {
-      dot   += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-
-    normA = math.sqrt(normA);
-    normB = math.sqrt(normB);
-
-    if (normA == 0.0 || normB == 0.0) return 0.0;
-
-    // Clamp to [-1, 1] to guard against floating-point drift
-    return (dot / (normA * normB)).clamp(-1.0, 1.0);
-  }
-
-  /// Splits [transcript] into overlapping evaluation chunks.
-  ///
-  /// Splitting boundaries: commas, Hindi danda (।), Hindi double-danda (॥),
-  /// full stops, exclamation marks, and question marks.
-  ///
-  /// Post-processing:
-  ///   - Trims and discards chunks whose word count is fewer than 2.
-  ///   - Deduplicates while preserving order.
-  ///   - Always appends the full original [transcript] as the last element so
-  ///     concepts that span multiple sub-clauses are still caught.
-  List<String> splitIntoChunks(String transcript) {
-    final raw = transcript.trim();
-
-    // Split on sentence/clause boundaries
-    final parts = raw.split(RegExp(r'[,।॥.!?]+'));
-
-    final chunks = <String>{}; // LinkedHashSet preserves insertion order
-    for (final part in parts) {
-      final chunk = part.trim();
-      // Keep only chunks that contain at least 2 whitespace-separated words
-      if (chunk.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length >= 2) {
-        chunks.add(chunk);
-      }
-    }
-
-    final result = chunks.toList();
-
-    // Always append the full transcript last so cross-clause concepts are caught
-    if (result.isEmpty || result.last != raw) {
-      result.add(raw);
-    }
-
-    return result;
-  }
-
-  /// Scores [transcript] against all anchors and returns a [TriageResult].
-  ///
-  /// For each anchor whose cosine similarity exceeds [threshold] a
-  /// [DetectedConcept] is created (unconfirmed). The final triage level is
-  /// determined by the highest-weight confirmed concept after the ASHA worker
-  /// responds to confirmation questions.
-  ///
-  /// Throws [StateError] if [initialize] has not been called first.
-  List<DetectedConcept> detectConcepts(
-    String transcript, {
-    double threshold = 0.40,
-  }) {
+  /// Keyword-based chunk detection
+  List<DetectedConcept> analyzeText(
+    String transcript,
+    String ageGroup,
+    String duration,
+  ) {
     if (!_isInitialized) {
-      throw StateError(
-        'TriageEngine is not initialised. '
-        'Await TriageEngine.instance.initialize() before calling detectConcepts().',
-      );
+      throw StateError('TriageEngine is not initialised.');
     }
 
-    final transcriptEmbedding =
-        EmbeddingService.instance.getEmbedding(transcript);
-
+    final lowerText = transcript.toLowerCase();
     final detected = <DetectedConcept>[];
 
     for (final anchor in _anchors) {
-      final key       = anchor['key']      as String;
-      final phrase    = anchor['phrase']   as String;
-      final category  = anchor['category'] as String;
-      final weight    = anchor['weight']   as int;
-      final hindi     = anchor['hindi']    as String;
+      final key = anchor['key'] as String;
+      final category = anchor['category'] as String;
+      final weight = anchor['weight'] as int;
+      final hindi = anchor['hindi'] as String;
 
-      final anchorEmb = _anchorEmbeddings[phrase]!;
-      final similarity = cosine(transcriptEmbedding, anchorEmb);
+      final keywords = _keywordDictionary[key] ?? [key.toLowerCase()];
+      bool isMatch = false;
+      for (final kw in keywords) {
+        if (lowerText.contains(kw)) {
+          isMatch = true;
+          break;
+        }
+      }
 
-      if (similarity >= threshold) {
-        detected.add(DetectedConcept(
-          conceptKey:           key,
-          category:             category,
-          similarity:           similarity,
-          weight:               weight,
-          hindiLabel:           hindi,
-          confirmationQuestion: hindi,
-        ));
+      if (isMatch) {
+        double baseScore = 0.60; 
+        final penalizedScore = _applyNegationPenalty(transcript, key, baseScore);
+        final adjusted = applyModifiers(penalizedScore, ageGroup: ageGroup, duration: duration);
+
+        if (adjusted >= 0.50) {
+          detected.add(DetectedConcept(
+            conceptKey: key,
+            category: category,
+            similarity: adjusted,
+            weight: weight,
+            hindiLabel: hindi,
+            confirmationQuestion: hindi,
+          ));
+        }
       }
     }
 
-    // Return highest-similarity concepts first
-    detected.sort((a, b) => b.similarity.compareTo(a.similarity));
-    return detected;
-  }
+    // Deduplicate fever
+    final feverKeys = ['fever_mild', 'fever_high', 'fever_with_seizure'];
+    final feverConcepts = detected.where((c) => feverKeys.contains(c.conceptKey)).toList();
+    if (feverConcepts.length > 1) {
+      feverConcepts.sort((a, b) => b.similarity.compareTo(a.similarity));
+      for (int i = 1; i < feverConcepts.length; i++) {
+        detected.remove(feverConcepts[i]);
+      }
+    }
 
-  /// Derives the final triage level from a list of worker-confirmed concepts.
-  ///
-  /// Priority: RED > YELLOW > GREEN. Ties broken by highest weight.
-  /// Returns "GREEN" if [confirmed] is empty.
-  static String resolveLevel(List<DetectedConcept> confirmed) {
-    if (confirmed.isEmpty) return 'GREEN';
-    if (confirmed.any((c) => c.category == 'RED'))    return 'RED';
-    if (confirmed.any((c) => c.category == 'YELLOW')) return 'YELLOW';
-    return 'GREEN';
+    const categoryOrder = {'RED': 0, 'YELLOW': 1, 'GREEN': 2};
+    detected.sort((a, b) {
+      final catCmp = (categoryOrder[a.category] ?? 3).compareTo(categoryOrder[b.category] ?? 3);
+      if (catCmp != 0) return catCmp;
+      return b.similarity.compareTo(a.similarity);
+    });
+
+    return detected.take(3).toList();
   }
 
   // ── Context modifiers ─────────────────────────────────────────────────────────
 
-  /// Adjusts a raw cosine [similarity] score upward based on patient context.
-  ///
-  /// Rules (additive, capped at 1.0):
-  /// | ageGroup          | boost  | Rationale                              |
-  /// |-------------------|--------|----------------------------------------|
-  /// | "newborn"/"infant"| +0.08  | Neonates deteriorate faster            |
-  /// | "elderly"         | +0.05  | Higher baseline risk                   |
-  /// | "child"           | +0.03  | Paediatric reserve lower than adults   |
-  ///
-  /// | duration          | boost  | Rationale                              |
-  /// |-------------------|--------|----------------------------------------|
-  /// | contains "week"   | +0.07  | Prolonged symptoms raise urgency       |
-  /// | contains "day"    | +0.04  | Multi-day illness more serious         |
-  /// | contains "hour"   | +0.02  | Acute onset, slight boost              |
   double applyModifiers(
     double similarity, {
     required String ageGroup,
     required String duration,
   }) {
     double boost = 0.0;
-
-    // ── Age-group modifier ───────────────────────────────────────────────────
     final age = ageGroup.toLowerCase().trim();
     if (age == 'newborn' || age == 'infant') {
       boost += 0.08;
@@ -292,7 +229,6 @@ class TriageEngine {
       boost += 0.03;
     }
 
-    // ── Duration modifier ────────────────────────────────────────────────────
     final dur = duration.toLowerCase();
     if (dur.contains('week')) {
       boost += 0.07;
@@ -358,107 +294,6 @@ class TriageEngine {
       }
     }
     return null;
-  }
-
-  // ── Public analysis API ───────────────────────────────────────────────────────
-
-  /// Analyses [transcript] in context of [ageGroup] and [duration] and
-  /// returns the top-3 most clinically relevant [DetectedConcept]s.
-  ///
-  /// Algorithm:
-  ///   1. Splits [transcript] into overlapping chunks via [splitIntoChunks].
-  ///   2. Embeds every chunk with [EmbeddingService.instance.getEmbedding].
-  ///   3. For each anchor, takes the **maximum** cosine similarity across
-  ///      all chunk embeddings (best-match semantics).
-  ///   4. Applies [applyModifiers] to that maximum score.
-  ///   5. Keeps only concepts whose adjusted score is ≥ 0.50.
-  ///   6. Sorts: RED before YELLOW before GREEN; within each band,
-  ///      descending by adjusted similarity.
-  ///   7. Returns at most the top 3 results.
-  ///
-  /// Throws [StateError] if [initialize] has not been called first.
-  List<DetectedConcept> analyzeText(
-    String transcript,
-    String ageGroup,
-    String duration,
-  ) {
-    if (!_isInitialized) {
-      throw StateError(
-        'TriageEngine is not initialised. '
-        'Await TriageEngine.instance.initialize() before calling analyzeText().',
-      );
-    }
-
-    // ── 1. Split transcript into evaluation chunks ───────────────────────────
-    final chunks = splitIntoChunks(transcript);
-
-    // ── 2. Embed every chunk (full transcript is always the last chunk) ───────
-    final chunkEmbeddings = chunks
-        .map(EmbeddingService.instance.getEmbedding)
-        .toList();
-
-    // ── 3-5. Score every anchor against all chunks ───────────────────────────
-    const double threshold = 0.50;
-    final detected = <DetectedConcept>[];
-
-    for (final anchor in _anchors) {
-      final key      = anchor['key']      as String;
-      final phrase   = anchor['phrase']   as String;
-      final category = anchor['category'] as String;
-      final weight   = anchor['weight']   as int;
-      final hindi    = anchor['hindi']    as String;
-
-      final anchorEmb = _anchorEmbeddings[phrase]!;
-
-      // Maximum cosine similarity across all chunk embeddings
-      double maxSimilarity = 0.0;
-      for (final chunkEmb in chunkEmbeddings) {
-        final sim = cosine(chunkEmb, anchorEmb);
-        if (sim > maxSimilarity) maxSimilarity = sim;
-      }
-
-      final penalizedScore = _applyNegationPenalty(transcript, key, maxSimilarity);
-
-      // Apply age/duration context modifiers
-      final adjusted = applyModifiers(
-        penalizedScore,
-        ageGroup: ageGroup,
-        duration: duration,
-      );
-
-      if (adjusted >= threshold) {
-        detected.add(DetectedConcept(
-          conceptKey:           key,
-          category:             category,
-          similarity:           adjusted,
-          weight:               weight,
-          hindiLabel:           hindi,
-          confirmationQuestion: hindi,
-        ));
-      }
-    }
-
-    // Deduplicate severity for fever
-    final feverKeys = ['fever_mild', 'fever_high', 'fever_with_seizure'];
-    final feverConcepts = detected.where((c) => feverKeys.contains(c.conceptKey)).toList();
-    if (feverConcepts.length > 1) {
-      feverConcepts.sort((a, b) => b.similarity.compareTo(a.similarity));
-      for (int i = 1; i < feverConcepts.length; i++) {
-        detected.remove(feverConcepts[i]);
-      }
-    }
-
-    // ── 6. Sort: RED > YELLOW > GREEN, then by similarity descending ──────────
-    const categoryOrder = {'RED': 0, 'YELLOW': 1, 'GREEN': 2};
-    detected.sort((a, b) {
-      final catCmp = (categoryOrder[a.category] ?? 3)
-          .compareTo(categoryOrder[b.category] ?? 3);
-      if (catCmp != 0) return catCmp;
-      return b.similarity.compareTo(a.similarity); // within band: highest first
-    });
-
-    // ── 7. Return top 3 ───────────────────────────────────────────────────────
-    return detected.take(3).toList();
   }
 
   // ── Scoring ───────────────────────────────────────────────────────────────────
