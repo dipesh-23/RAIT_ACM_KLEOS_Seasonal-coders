@@ -1,71 +1,69 @@
-# ASHA Triage
+# ASHA Triage: Intelligent Offline Health Screening
 
-Voice-based clinical triage for ASHA health workers — split into frontend (Flutter) and backend (FastAPI).
+ASHA Triage is a highly advanced, **100% offline** Flutter application designed specifically for ASHA (Accredited Social Health Activist) workers in rural India. It empowers frontline healthcare workers to quickly and accurately triage patients using voice, text, or an interactive body map, without requiring any internet connection.
 
-## Project structure
+---
 
-```
-RAIT_HACK/
-├── frontend/          Flutter mobile app (UI, STT, TTS)
-│   ├── lib/
-│   │   ├── screens/
-│   │   ├── providers/
-│   │   ├── services/  api_service, stt_service, tts_service
-│   │   └── config/    API base URL
-│   └── assets/audio/  Hindi triage audio (add manually)
-│
-└── backend/           FastAPI server (ML triage, sessions DB)
-    ├── app/
-    │   ├── routes/    REST endpoints
-    │   ├── services/  embedding + triage engine + database
-    │   └── models/
-    └── assets/anchors/clinical_anchors.json
-```
+## 🌟 Unique Selling Propositions (USPs)
 
-## Quick start
+1. **Zero Internet Required (100% Offline)**
+   All Speech-to-Text (STT), Natural Language Processing (NLP), data storage, and triage logic run entirely locally on the device. Perfect for remote rural clinics with zero connectivity.
+2. **Tri-lingual Support**
+   Natively supports **Hindi, Marathi, and English**. The UI, voice recognition, and Text-to-Speech all switch dynamically based on the worker's preference.
+3. **Advanced Offline NLP Triage Engine**
+   Uses a custom-built, on-device NLP matching engine that compares transcribed speech against a robust dataset (`clinical_anchors.json`) of over 40 distinct medical concepts to accurately assign RED (Emergency), YELLOW (Observation), or GREEN (Normal) urgency levels.
+4. **Interactive "Body Tap" Interface**
+   A futuristic, premium, animated human silhouette that allows users to simply tap on body regions to select symptoms, designed specifically as a highly intuitive fallback for users who prefer not to use voice.
+5. **Hardware-Level Audio DSP**
+   Utilizes deep hardware integration for Automatic Gain Control (AGC), Acoustic Echo Cancellation (AEC), and Active Noise Suppression, ensuring highly accurate voice transcriptions even in noisy rural environments.
 
-### Backend
+---
 
-```powershell
-cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+## 🛠️ Key Features & Workflows
 
-API docs: http://localhost:8000/docs
+### 1. Worker Dashboard
+- **Component:** `SessionStartScreen`
+- **Workflow:** The ASHA worker opens the app to a dashboard displaying their real-time daily statistics (Today's Patients, Critical Cases, Normal Cases). From here, they can register a new patient by entering their name, age, gender, and symptom duration.
 
-### Frontend
+### 2. Multi-Modal Input (Voice & Body)
+- **Component:** `VoiceScreen` & `BodyTapScreen`
+- **Workflow:** 
+  - **Voice:** The worker presses the microphone. The app utilizes `stt_service.dart` (powered by Vosk) and the device's hardware DSP to capture clean audio, converting it to text instantly.
+  - **Body Tap:** The worker taps the body icon to open an interactive silhouette. They can select specific body parts (e.g., Chest, Head) and choose from a localized list of symptoms.
+  - **Merge:** The app seamlessly merges both manual Body Tap selections and AI-extracted voice concepts into a single patient profile.
 
-```powershell
-cd frontend
-flutter pub get
-flutter run
-```
+### 3. NLP Triage Engine
+- **Component:** `TriageEngine` & `EmbeddingService`
+- **Workflow:** The recorded text is fed into the offline engine. It uses string similarity algorithms and medical anchor matching to detect clinical concepts (e.g., "तेज बुखार" -> High Fever). It then calculates a triage score based on the severity weights of the detected concepts.
 
-For a physical device, point the app at your machine's IP:
+### 4. Interactive Confirmation & TTS
+- **Component:** `ConfirmationScreen` & `TtsService`
+- **Workflow:** The engine may identify symptoms that require verification (e.g., "Are they unconscious?"). The app asks the worker these questions dynamically. `flutter_tts` reads these questions out loud in Hindi or Marathi.
 
-```powershell
-flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8000
-```
+### 5. Final Result & Referral Generation
+- **Component:** `ResultScreen` & `ReferralScreen`
+- **Workflow:** Based on the final score, the app flashes RED, YELLOW, or GREEN. If the patient is RED, the app generates an instant Referral Slip with a QR Code (`qr_flutter`) that can be scanned by the destination hospital, seamlessly transferring the offline data.
 
-Android emulator uses `http://10.0.2.2:8000` by default.
+---
 
-## API endpoints
+## 📦 Technical Components Used
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check |
-| POST | `/api/triage/classify` | Classify transcript → red/yellow/green |
-| POST | `/api/sessions` | Save triage session |
-| GET | `/api/sessions` | List all sessions |
+| Component | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Framework** | Flutter / Dart | Cross-platform UI rendering |
+| **State Management** | `provider` | Manages `TriageProvider` state across complex navigation flows |
+| **Offline Speech-to-Text** | `vosk_flutter` | Converts Hindi/Marathi/English audio to text entirely offline |
+| **Audio Capture & DSP** | `record` (v5.0.4) | Captures PCM-16 audio and applies hardware Noise Suppression |
+| **Offline Database** | `sqflite` | Stores all patient sessions, triage results, and worker stats locally |
+| **Text-to-Speech** | `flutter_tts` | Reads questions and recommendations aloud to the worker |
+| **QR Generation** | `qr_flutter` | Encodes critical patient triage data into an offline scannable QR code |
+| **Visuals & Animations** | `CustomPainter`, `AnimationController` | Renders the complex glowing Body Tap interface and audio waveform Visualizers |
 
-## Manual assets
+---
 
-**Frontend** (`frontend/assets/audio/`):
-- `red_hindi.mp3`, `yellow_hindi.mp3`, `green_hindi.mp3`
+## 🚀 How to Run
 
-**Backend** uses `sentence-transformers` (all-MiniLM-L6-v2) — downloaded automatically on first run.
-
-> Note: The old `asha_triage/` folder can be deleted; use `frontend/` instead.
+1. Clone the repository.
+2. Ensure you have the Vosk language models (Hindi, English) placed in `assets/vosk/`.
+3. Run `flutter pub get` to install all dependencies.
+4. Run `flutter run` on a physical Android device (Microphone hardware DSP requires a physical device for optimal performance).
