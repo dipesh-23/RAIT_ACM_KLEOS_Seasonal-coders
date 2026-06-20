@@ -22,6 +22,7 @@ class TriageProvider extends ChangeNotifier {
   
   // Dynamic Confirmation state
   List<DetectedConcept> _detectedConcepts = [];
+  List<DetectedConcept> _conceptsNeedingConfirmation = [];
   int _currentConfirmationStep = 0;
   final List<bool?> _confirmationAnswers = [];
 
@@ -34,6 +35,7 @@ class TriageProvider extends ChangeNotifier {
   List<bool?>   get confirmationAnswers => _confirmationAnswers;
   String        get selectedLanguage  => _selectedLanguage;
   List<DetectedConcept> get detectedConcepts => _detectedConcepts;
+  List<DetectedConcept> get conceptsNeedingConfirmation => _conceptsNeedingConfirmation;
   bool          get servicesReady     => _servicesReady;
 
   // ── Background model initialisation ──────────────────────────────────────
@@ -62,7 +64,7 @@ class TriageProvider extends ChangeNotifier {
   }
 
   List<String> get confirmationQuestions {
-    final questions = _detectedConcepts.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
+    final questions = _conceptsNeedingConfirmation.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
     questions.add(AppStrings.get('safety_net_q', _selectedLanguage)); // Mandatory safety net
     return questions;
   }
@@ -72,6 +74,7 @@ class TriageProvider extends ChangeNotifier {
     _transcribedText = '';
     _currentResult = null;
     _detectedConcepts = [];
+    _conceptsNeedingConfirmation = [];
     _currentConfirmationStep = 0;
     _confirmationAnswers.clear();
     DatabaseService.instance.insertSession(session);
@@ -109,9 +112,19 @@ class TriageProvider extends ChangeNotifier {
         _currentSession?.patientAgeGroup?.name ?? 'ADULT',
         _currentSession?.symptomDuration?.name ?? 'TODAY',
       );
+      
+      _conceptsNeedingConfirmation = [];
+      for (final concept in _detectedConcepts) {
+        if (!concept.requiresConfirmation) {
+          concept.confirmed = true;
+        } else {
+          _conceptsNeedingConfirmation.add(concept);
+        }
+      }
     } catch (e) {
       debugPrint('Error analyzing text: $e');
       _detectedConcepts = [];
+      _conceptsNeedingConfirmation = [];
     }
     
     _currentConfirmationStep = 0;
@@ -131,8 +144,8 @@ class TriageProvider extends ChangeNotifier {
     _confirmationAnswers[_currentConfirmationStep] = answer;
     
     // Also update the underlying concept, unless it's the safety net question
-    if (_detectedConcepts.isNotEmpty && _currentConfirmationStep < _detectedConcepts.length) {
-      _detectedConcepts[_currentConfirmationStep].confirmed = answer;
+    if (_conceptsNeedingConfirmation.isNotEmpty && _currentConfirmationStep < _conceptsNeedingConfirmation.length) {
+      _conceptsNeedingConfirmation[_currentConfirmationStep].confirmed = answer;
     }
     
     notifyListeners();
@@ -193,6 +206,33 @@ class TriageProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+  
+  void escalateToRed() {
+    if (_currentResult == null || _currentSession == null) return;
+    
+    // Update Result
+    _currentResult = _currentResult!.copyWith(
+      category: TriageCategory.red,
+      requiresReferral: true,
+      recommendation: 'Immediate referral required.',
+      recommendationHindi: 'तुरंत अस्पताल भेजें — यह गंभीर मामला है।',
+    );
+    
+    // Add "Worker Escalated" to reasons if not present
+    if (!_currentResult!.matchedSymptoms.contains('मरीज की हालत गंभीर (Worker Flagged)')) {
+       _currentResult!.matchedSymptoms.add('मरीज की हालत गंभीर (Worker Flagged)');
+    }
+    
+    DatabaseService.instance.insertTriageResult(_currentResult!);
+    
+    // Update Session
+    _currentSession = _currentSession!.copyWith(
+      triageLevel: TriageCategory.red.name,
+    );
+    DatabaseService.instance.updateSession(_currentSession!);
+    
+    notifyListeners();
+  }
 
   void updateSession(SessionModel updatedSession) {
     if (_currentSession?.id == updatedSession.id) {
@@ -208,6 +248,7 @@ class TriageProvider extends ChangeNotifier {
     _isRecording = false;
     _isProcessing = false;
     _detectedConcepts = [];
+    _conceptsNeedingConfirmation = [];
     _currentConfirmationStep = 0;
     _confirmationAnswers.clear();
     notifyListeners();

@@ -51,14 +51,6 @@ class LanguageSelectionScreen extends StatelessWidget {
                   onTap: () => _selectLanguage(context, "hi"),
                 ),
                 const SizedBox(height: 16),
-                
-                _LanguageCard(
-                  languageName: "मराठी",
-                  englishName: "Marathi",
-                  langCode: "mr",
-                  onTap: () => _selectLanguage(context, "mr"),
-                ),
-                const SizedBox(height: 16),
 
                 _LanguageCard(
                   languageName: "English",

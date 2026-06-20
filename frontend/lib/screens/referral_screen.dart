@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +15,7 @@ import '../app_theme.dart';
 import '../providers/triage_provider.dart';
 import '../models/session_model.dart';
 import '../services/database_service.dart';
+import '../models/triage_result.dart';
 import 'session_start_screen.dart';
 
 class ReferralScreen extends StatefulWidget {
@@ -84,22 +86,18 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final session = provider.currentSession;
     final result = provider.currentResult;
     final now = DateTime.now();
-    
-    String symptoms = 'None';
-    if (result != null && result.matchedSymptoms.isNotEmpty) {
-      symptoms = result.matchedSymptoms.join(', ');
-    }
 
+    // We use a purely English/ASCII string here.
+    // qr_flutter (and the underlying qr package) has known bugs on some platforms
+    // where complex Unicode/Hindi strings cause the layout thread to freeze or crash.
     return '''ASHA Referral Slip
 Session: ${session?.sessionCode ?? '--'}
-Worker: ${session?.ashaWorkerName ?? '--'}
-Age Group: ${session?.patientAgeGroup?.labelHi ?? '--'}
-Duration: ${session?.symptomDuration?.labelHi ?? '--'}
-Symptoms: $symptoms
-Status: ${result?.categoryLabel ?? 'गंभीर (Red)'}
+Age: ${session?.patientAgeGroup?.name.toUpperCase() ?? '--'}
+Duration: ${session?.symptomDuration?.name.toUpperCase() ?? '--'}
+Symptoms Count: ${result?.matchedSymptoms.length ?? 0}
+Status: ${result?.category.name.toUpperCase() ?? 'RED'}
 Date: ${now.day}/${now.month}/${now.year}
-Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}
-''';
+Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}''';
   }
 
   void _showQrSummary() {
@@ -122,11 +120,14 @@ Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, 
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppTheme.divider, width: 2),
                 ),
-                child: QrImageView(
-                  data: summaryText,
-                  version: QrVersions.auto,
-                  size: 200.0,
-                  backgroundColor: Colors.white,
+                child: SizedBox(
+                  width: 200,
+                  height: 200,
+                  child: QrImageView(
+                    data: summaryText,
+                    version: QrVersions.auto,
+                    backgroundColor: Colors.white,
+                  ),
                 ),
               ),
             ],
@@ -274,7 +275,7 @@ Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, 
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: AppTheme.cardShadow,
                   border: Border.all(
-                      color: AppTheme.triageRed.withOpacity(0.2), width: 1.5),
+                      color: (result?.category == TriageCategory.green ? AppTheme.triageGreen : AppTheme.triageRed).withOpacity(0.2), width: 1.5),
                 ),
                 child: Column(
                   children: [
@@ -283,7 +284,7 @@ Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, 
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        gradient: AppTheme.redGradient,
+                        gradient: result?.category == TriageCategory.green ? AppTheme.greenGradient : AppTheme.redGradient,
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(18),
                           topRight: Radius.circular(18),
@@ -294,11 +295,11 @@ Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, 
                           const Icon(Icons.local_hospital_rounded,
                               color: Colors.white, size: 36),
                           const SizedBox(height: 8),
-                          Text('ASHA तत्काल रेफरल',
+                          Text(result?.category == TriageCategory.green ? 'ASHA घरेलू उपचार सलाह' : 'ASHA तत्काल रेफरल',
                               style: GoogleFonts.poppins(
                                   color: Colors.white, fontSize: 18,
                                   fontWeight: FontWeight.w700)),
-                          Text('Urgent Health Referral Slip',
+                          Text(result?.category == TriageCategory.green ? 'Home Care Advice Slip' : 'Urgent Health Referral Slip',
                               style: GoogleFonts.poppins(
                                   color: Colors.white70, fontSize: 12)),
                         ],
@@ -368,7 +369,9 @@ Time: ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, 
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Text('सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
+                          Text(result?.category == TriageCategory.green 
+                                  ? 'घर पर आराम करें और 2 दिन निगरानी रखें\nHome Care. Monitor for 2 days.'
+                                  : 'सरकारी स्वास्थ्य केंद्र / PHC में तुरंत ले जाएं',
                               textAlign: TextAlign.center,
                               style: GoogleFonts.poppins(
                                   color: AppTheme.textMedium, fontSize: 12,

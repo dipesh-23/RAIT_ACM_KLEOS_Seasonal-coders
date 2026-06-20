@@ -86,6 +86,19 @@ class _ResultScreenState extends State<ResultScreen>
     final gradient = _categoryGradient(cat);
     final lang = provider.selectedLanguage;
 
+    final confirmedConcepts = provider.detectedConcepts.where((c) => c.confirmed).toList();
+    bool manuallyConfirmed = confirmedConcepts.any((c) => c.requiresConfirmation) || 
+                             result.matchedSymptoms.contains('मरीज की हालत गंभीर (Worker Flagged)');
+                             
+    String? detectionSubtitle;
+    if (cat == TriageCategory.red) {
+      if (!manuallyConfirmed) {
+        detectionSubtitle = 'एआई द्वारा स्वतः पहचाना गया';
+      } else {
+        detectionSubtitle = lang == 'mr' ? 'कार्यकर्त्याने पुष्टी केली' : (lang == 'hi' ? 'कार्यकर्ता द्वारा पुष्टि की गई' : 'Confirmed by worker');
+      }
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.bgPage,
       body: SafeArea(
@@ -115,7 +128,29 @@ class _ResultScreenState extends State<ResultScreen>
                       style: GoogleFonts.poppins(
                           color: Colors.white, fontSize: 26,
                           fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 6),
+                  if (detectionSubtitle != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(!manuallyConfirmed ? Icons.auto_awesome_rounded : Icons.verified_user_rounded,
+                              color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Text(detectionSubtitle,
+                              style: GoogleFonts.poppins(
+                                  color: Colors.white, fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   Text(result.getRecommendationForLang(lang),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
@@ -225,16 +260,28 @@ class _ResultScreenState extends State<ResultScreen>
                       ),
                     ),
 
-                    const SizedBox(height: 12),
-
-                    if (result.requiresReferral)
+                    if (cat == TriageCategory.yellow && !result.requiresReferral) ...[
+                      const SizedBox(height: 12),
                       AppTheme.gradientButton(
-                        label: AppStrings.get('create_referral_slip', lang),
+                        label: lang == 'hi' ? 'गंभीर स्थिति घोषित करें (Escalate)' : 'Escalate to Emergency (RED)',
+                        onTap: () => context.read<TriageProvider>().escalateToRed(),
+                        gradient: AppTheme.redGradient,
+                        icon: Icons.emergency_share_rounded,
+                      ),
+                    ],
+
+                    if (result.requiresReferral || cat == TriageCategory.green) ...[
+                      const SizedBox(height: 12),
+                      AppTheme.gradientButton(
+                        label: cat == TriageCategory.green 
+                            ? (lang == 'hi' ? 'घरेलू उपचार सलाह स्लिप' : 'Home Care Advice Slip') 
+                            : AppStrings.get('create_referral_slip', lang),
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const ReferralScreen())),
-                        gradient: AppTheme.redGradient,
-                        icon: Icons.local_hospital_rounded,
+                        gradient: cat == TriageCategory.green ? AppTheme.greenGradient : AppTheme.redGradient,
+                        icon: cat == TriageCategory.green ? Icons.home_rounded : Icons.local_hospital_rounded,
                       ),
+                    ],
 
                     const SizedBox(height: 12),
 

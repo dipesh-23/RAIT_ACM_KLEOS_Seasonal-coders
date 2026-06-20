@@ -7,21 +7,34 @@ import '../utils/app_strings.dart';
 import 'confirmation_screen.dart';
 import 'voice_screen.dart';
 import 'profile_screen.dart';
+import '../widgets/custom_keyboard.dart';
 
 class TranscriptionScreen extends StatefulWidget {
-  const TranscriptionScreen({super.key});
+  final bool startEditing;
+  const TranscriptionScreen({super.key, this.startEditing = false});
 
   @override
   State<TranscriptionScreen> createState() => _TranscriptionScreenState();
 }
 
 class _TranscriptionScreenState extends State<TranscriptionScreen> {
+  late bool _isEditing;
+  late TextEditingController _textCtrl;
+
   @override
   void initState() {
     super.initState();
+    _isEditing = widget.startEditing;
+    _textCtrl = TextEditingController(text: context.read<TriageProvider>().transcribedText);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TriageProvider>().analyzeTranscription();
     });
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -109,10 +122,23 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                                     color: AppTheme.primary, size: 20),
                               ),
                               const SizedBox(width: 10),
-                              Text(AppStrings.get('audio_transcription', lang),
-                                  style: GoogleFonts.poppins(
-                                      color: AppTheme.primary, fontSize: 13,
-                                      fontWeight: FontWeight.w600)),
+                              Expanded(
+                                child: Text(AppStrings.get('audio_transcription', lang),
+                                    style: GoogleFonts.poppins(
+                                        color: AppTheme.primary, fontSize: 13,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                              if (!_isEditing)
+                                IconButton(
+                                  icon: const Icon(Icons.edit_rounded, size: 20),
+                                  color: AppTheme.primary,
+                                  onPressed: () {
+                                    setState(() {
+                                      _isEditing = true;
+                                      _textCtrl.text = provider.transcribedText;
+                                    });
+                                  },
+                                ),
                             ],
                           ),
                           const SizedBox(height: 14),
@@ -120,14 +146,31 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                             height: 1, color: AppTheme.divider,
                           ),
                           const SizedBox(height: 14),
-                          Text(
-                            text.isEmpty
-                                ? '"मरीज को तीन दिन से तेज बुखार है। उन्हें खांसी भी आ रही है और मांस लेने में कुछ तकलीफ महसूस हो रही है..."'
-                                : '"$text"',
-                            style: GoogleFonts.poppins(
-                                color: AppTheme.textDark, fontSize: 15,
-                                height: 1.6, fontStyle: FontStyle.italic),
-                          ),
+                          if (_isEditing)
+                            TextField(
+                              controller: _textCtrl,
+                              readOnly: true,
+                              showCursor: true,
+                              maxLines: null,
+                              style: GoogleFonts.poppins(
+                                  color: AppTheme.textDark, fontSize: 15,
+                                  height: 1.6),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            )
+                          else
+                            Text(
+                              text.isEmpty
+                                  ? '"मरीज को तीन दिन से तेज बुखार है। उन्हें खांसी भी आ रही है और मांस लेने में कुछ तकलीफ महसूस हो रही है..."'
+                                  : '"$text"',
+                              style: GoogleFonts.poppins(
+                                  color: AppTheme.textDark, fontSize: 15,
+                                  height: 1.6, fontStyle: FontStyle.italic),
+                            ),
+
                         ],
                       ),
                     ),
@@ -224,51 +267,67 @@ class _TranscriptionScreenState extends State<TranscriptionScreen> {
                     const SizedBox(height: 16),
 
                     // ── Action Buttons ──
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => Navigator.of(context)
-                                .pushReplacement(MaterialPageRoute(
-                                    builder: (_) => const VoiceScreen())),
-                            icon: const Icon(Icons.refresh_rounded, size: 18),
-                            label: Text(AppStrings.get('rerecord', lang),
-                                style: GoogleFonts.poppins(
-                                    fontSize: 14, fontWeight: FontWeight.w600)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
+                    if (_isEditing)
+                      AppTheme.gradientButton(
+                        label: 'Done Editing',
+                        onTap: () {
+                          setState(() {
+                            _isEditing = false;
+                          });
+                          provider.updateTranscription(_textCtrl.text);
+                          provider.analyzeTranscription();
+                        },
+                        icon: Icons.check_circle_rounded,
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => Navigator.of(context)
+                                  .pushReplacement(MaterialPageRoute(
+                                      builder: (_) => const VoiceScreen())),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: Text(AppStrings.get('rerecord', lang),
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14, fontWeight: FontWeight.w600)),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: provider.isProcessing ? null : () {
-                              if (!context.mounted) return;
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                    builder: (_) => const ConfirmationScreen()),
-                              );
-                            },
-                            icon: const Icon(Icons.check_rounded, size: 18),
-                            label: Text(AppStrings.get('correct_continue', lang),
-                                style: GoogleFonts.poppins(
-                                    fontSize: 14, fontWeight: FontWeight.w600)),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: provider.isProcessing ? null : () {
+                                if (!context.mounted) return;
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                      builder: (_) => const ConfirmationScreen()),
+                                );
+                              },
+                              icon: const Icon(Icons.check_rounded, size: 18),
+                              label: Text(AppStrings.get('correct_continue', lang),
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14, fontWeight: FontWeight.w600)),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+
                   ],
                 ),
               ),
             ),
+            if (_isEditing)
+              CustomKeyboard(controller: _textCtrl, language: lang),
           ],
         ),
       ),

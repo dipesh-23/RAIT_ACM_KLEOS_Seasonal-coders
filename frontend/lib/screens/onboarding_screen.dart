@@ -150,7 +150,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             children: [
                               _langButton('English', '', 'en', Icons.language),
                               _langButton('Hindi', '', 'hi', Icons.translate),
-                              _langButton('Marathi', '', 'mr', Icons.translate),
                             ],
                           ),
                         ),

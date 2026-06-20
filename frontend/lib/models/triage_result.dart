@@ -79,6 +79,32 @@ class TriageResult {
     }
   }
 
+  TriageResult copyWith({
+    String? id,
+    String? sessionId,
+    TriageCategory? category,
+    String? transcribedText,
+    double? confidenceScore,
+    List<String>? matchedSymptoms,
+    String? recommendation,
+    String? recommendationHindi,
+    DateTime? createdAt,
+    bool? requiresReferral,
+  }) {
+    return TriageResult(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      category: category ?? this.category,
+      transcribedText: transcribedText ?? this.transcribedText,
+      confidenceScore: confidenceScore ?? this.confidenceScore,
+      matchedSymptoms: matchedSymptoms ?? List.from(this.matchedSymptoms),
+      recommendation: recommendation ?? this.recommendation,
+      recommendationHindi: recommendationHindi ?? this.recommendationHindi,
+      createdAt: createdAt ?? this.createdAt,
+      requiresReferral: requiresReferral ?? this.requiresReferral,
+    );
+  }
+
   Map<String, dynamic> toMap() => {
     'id': id,
     'session_id': sessionId,

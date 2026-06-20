@@ -34,18 +34,21 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
     super.dispose();
   }
 
+  void _scoreAndNavigate(TriageProvider provider) {
+    provider.computeFinalTriage();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ResultScreen()));
+  }
+
   void _answer(BuildContext context, bool value) async {
     final provider = context.read<TriageProvider>();
     provider.answerConfirmation(value);
     final done = provider.nextConfirmationStep();
 
     if (done) {
-      // Compute triage
       setState(() {});
-      provider.computeFinalTriage();
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const ResultScreen()));
+      _scoreAndNavigate(provider);
     } else {
       // Animate to next question
       _slideCtrl.reset();
@@ -116,6 +119,28 @@ class _ConfirmationScreenState extends State<ConfirmationScreen>
                   child: Column(
                     children: [
                       const SizedBox(height: 20),
+
+                      // ── Confidence Badge (if not safety net) ──
+                      if (current < provider.conceptsNeedingConfirmation.length)
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryLight.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'AI is ${(provider.conceptsNeedingConfirmation[current].similarity * 100).round()}% confident',
+                              style: GoogleFonts.poppins(
+                                color: AppTheme.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
 
                       // ── Warning Icon ──
                       Container(

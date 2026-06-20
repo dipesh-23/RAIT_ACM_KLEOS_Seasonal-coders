@@ -119,7 +119,6 @@ class TriageEngine {
         'category': concept['category'] as String,
         'weight':   (concept['weight'] as num).toInt(),
         'hindi':    concept['hindi_question'] as String,
-        'marathi':  (concept['marathi_question'] ?? concept['hindi_question']) as String,
         'english':  (concept['english_question'] ?? concept['hindi_question']) as String,
       });
 
@@ -267,7 +266,6 @@ class TriageEngine {
       final category  = anchor['category'] as String;
       final weight    = anchor['weight']   as int;
       final hindi     = anchor['hindi']    as String;
-      final marathi   = anchor['marathi']  as String;
       final english   = anchor['english']  as String;
 
       final anchorEmb = _anchorEmbeddings[phrase]!;
@@ -280,9 +278,9 @@ class TriageEngine {
           similarity:           similarity,
           weight:               weight,
           hindiLabel:           hindi,
-          marathiLabel:         marathi,
           englishLabel:         english,
           confirmationQuestion: hindi, // fallback
+          requiresConfirmation: category == 'RED' && similarity < 0.75,
         ));
       }
     }
@@ -359,8 +357,6 @@ class TriageEngine {
     if (_negationPatterns.isEmpty) return similarityScore;
 
     final allNegations = [
-      ...(_negationPatterns['hindi'] as List).cast<String>(),
-      ...(_negationPatterns['marathi'] as List).cast<String>(),
       ...(_negationPatterns['english'] as List).cast<String>(),
     ];
     final transcriptLower = transcript.toLowerCase();
@@ -445,8 +441,6 @@ class TriageEngine {
     const double threshold = 0.40;
     final detected = <DetectedConcept>[];
 
-
-
     for (int i = 0; i < _anchors.length; i++) {
       final anchor   = _anchors[i];
       final key      = anchor['key']      as String;
@@ -454,7 +448,6 @@ class TriageEngine {
       final category = anchor['category'] as String;
       final weight   = anchor['weight']   as int;
       final hindi    = anchor['hindi']    as String;
-      final marathi  = anchor['marathi']  as String;
       final english  = anchor['english']  as String;
 
       final anchorEmb = _anchorEmbeddings[phrase]!;
@@ -489,9 +482,9 @@ class TriageEngine {
           similarity:           adjusted,
           weight:               weight,
           hindiLabel:           hindi,
-          marathiLabel:         marathi,
           englishLabel:         english,
           confirmationQuestion: hindi,
+          requiresConfirmation: category == 'RED' && adjusted < 0.75,
         ));
       }
     }

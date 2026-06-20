@@ -4,9 +4,9 @@ class DetectedConcept {
   final double similarity;
   final int weight;
   final String hindiLabel;
-  final String? marathiLabel;
   final String? englishLabel;
   final String confirmationQuestion;
+  final bool requiresConfirmation;
   bool confirmed; // mutable so worker can flip it
 
   DetectedConcept({
@@ -15,47 +15,23 @@ class DetectedConcept {
     required this.similarity,
     required this.weight,
     required this.hindiLabel,
-    this.marathiLabel,
     this.englishLabel,
     required this.confirmationQuestion,
+    required this.requiresConfirmation,
     this.confirmed = false,
   });
 
   String getLabelForLang(String lang) {
     final searchKey = conceptKey.replaceAll('_', ' ');
-    if (lang == 'mr') return _labelTranslationsMr[searchKey] ?? hindiLabel;
     if (lang == 'en') return _labelTranslationsEn[searchKey] ?? hindiLabel;
     return hindiLabel;
   }
 
   String getQuestionForLang(String lang) {
     final searchKey = conceptKey.replaceAll('_', ' ');
-    if (lang == 'mr') return marathiLabel ?? _questionTranslationsMr[searchKey] ?? confirmationQuestion;
     if (lang == 'en') return englishLabel ?? _questionTranslationsEn[searchKey] ?? confirmationQuestion;
     return confirmationQuestion;
   }
-
-  static const Map<String, String> _labelTranslationsMr = {
-    'breathing difficulty': 'श्वास घेण्यास त्रास',
-    'unconscious unresponsive': 'बेशुद्ध / प्रतिसाद देत नाही',
-    'seizure convulsion': 'झटके / आकडी',
-    'severe bleeding': 'तीव्र रक्तस्त्राव',
-    'chest pain': 'छातीत दुखणे',
-    'newborn emergency': 'नवजात अर्भक आणीबाणी',
-    'labor delivery complication': 'प्रसूतीतील गुंतागुंत',
-    'not eating not drinking': 'काहीही खात-पीत नाही',
-    'high fever many days': 'अनेक दिवस तीव्र ताप',
-    'repeated vomiting': 'वारंवार उलट्या',
-    'severe diarrhea': 'तीव्र जुलाब',
-    'severe headache': 'तीव्र डोकेदुखी',
-    'pregnancy problem': 'गर्भधारणेतील समस्या',
-    'child not active lethargic': 'मूल सुस्त आहे',
-    'swelling body': 'अंगावर सूज',
-    'mild fever': 'सौम्य ताप',
-    'common cold cough': 'सर्दी खोकला',
-    'minor body ache': 'अंगदुखी',
-    'minor stomach ache': 'पोटदुखी',
-  };
 
   static const Map<String, String> _labelTranslationsEn = {
     'breathing difficulty': 'Breathing Difficulty',
@@ -77,29 +53,6 @@ class DetectedConcept {
     'common cold cough': 'Cold and Cough',
     'minor body ache': 'Minor Body Ache',
     'minor stomach ache': 'Minor Stomach Ache',
-  };
-
-  static const Map<String, String> _questionTranslationsMr = {
-    'breathing difficulty': 'रुग्णाला श्वास घेण्यास त्रास होत आहे का?',
-    'unconscious unresponsive': 'रुग्ण बेशुद्ध आहे किंवा प्रतिसाद देत नाही का?',
-    'seizure convulsion': 'रुग्णाला झटके किंवा आकडी येत आहे का?',
-    'severe bleeding': 'रुग्णाला तीव्र रक्तस्त्राव होत आहे का?',
-    'chest pain': 'रुग्णाच्या छातीत दुखत आहे का?',
-    'newborn emergency': 'नवजात अर्भकाला कोणतीही आणीबाणीची समस्या आहे का?',
-    'labor delivery complication': 'प्रसूतीमध्ये कोणतीही गुंतागुंत आहे का?',
-    'not eating not drinking': 'रुग्णाने खाणे-पिणे पूर्णपणे बंद केले आहे का?',
-    'high fever many days': 'रुग्णाला अनेक दिवसांपासून तीव्र ताप आहे का?',
-    'repeated vomiting': 'रुग्णाला वारंवार उलट्या होत आहेत का?',
-    'severe diarrhea': 'रुग्णाला तीव्र जुलाब होत आहेत का?',
-    'severe headache': 'रुग्णाचे डोके खूप दुखत आहे का?',
-    'pregnancy problem': 'गर्भधारणेमध्ये कोणतीही समस्या येत आहे का?',
-    'child not active lethargic': 'मूल सुस्त आहे आणि नेहमीपेक्षा कमी सक्रिय आहे का?',
-    'swelling body': 'रुग्णाच्या अंगावर सूज आहे का?',
-    'mild fever': 'रुग्णाला सौम्य ताप आहे का?',
-    'common cold cough': 'रुग्णाला सामान्य सर्दी किंवा खोकला आहे का?',
-    'minor body ache': 'रुग्णाच्या अंगात थोडे दुखत आहे का?',
-    'minor stomach ache': 'रुग्णाच्या पोटात थोडे दुखत आहे का?',
-    '__unknown__': 'रुग्णाला ही समस्या होत आहे का?',
   };
 
   static const Map<String, String> _questionTranslationsEn = {

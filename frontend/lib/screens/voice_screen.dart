@@ -296,7 +296,29 @@ class _VoiceScreenState extends State<VoiceScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  if (!_isRecording) ...[
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: () {
+                        context.read<TriageProvider>().updateTranscription('');
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TranscriptionScreen(startEditing: true),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.keyboard_alt_rounded, size: 16),
+                      label: Text(
+                        AppStrings.get('type_manually', lang),
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.textMedium,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
 
                   // Dynamic multi-colored Bezier audio visualization curve
                   Container(

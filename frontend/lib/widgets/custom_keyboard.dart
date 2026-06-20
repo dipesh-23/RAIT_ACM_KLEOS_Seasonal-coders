@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../app_theme.dart';
 
-/// In-app custom keyboard for Hindi (hi), Marathi (mr), and English (en).
+/// In-app custom keyboard for Hindi (hi) and English (en).
 /// Directly manipulates a [TextEditingController] — no system IME involved.
 class CustomKeyboard extends StatefulWidget {
   final TextEditingController controller;
-  final String language; // 'hi' | 'mr' | 'en'
+  final String language; // 'hi' | 'en'
 
   const CustomKeyboard({
     super.key,
@@ -101,9 +102,9 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
   Widget build(BuildContext context) {
     final isEn = widget.language == 'en';
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0A0A18),
-        border: Border(top: BorderSide(color: Color(0xFF1E1E38), width: 1)),
+      decoration: BoxDecoration(
+        color: AppTheme.bgPage,
+        border: Border(top: BorderSide(color: AppTheme.borderColor, width: 1)),
       ),
       child: SafeArea(
         top: false,
@@ -137,7 +138,7 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: active ? const Color(0xFF7C6FFF) : const Color(0xFF1E1E38),
+                    color: active ? AppTheme.primary : Colors.transparent,
                     width: active ? 2.5 : 1,
                   ),
                 ),
@@ -146,8 +147,8 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
               child: Text(
                 tabs[i],
                 style: GoogleFonts.poppins(
-                  color: active ? Colors.white : Colors.white38,
-                  fontSize: 12,
+                  color: active ? AppTheme.primary : AppTheme.textLight,
+                  fontSize: 13,
                   fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
@@ -207,8 +208,8 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
           _sk(
             icon: Icon(
               _caps ? Icons.arrow_upward_rounded : Icons.arrow_upward_outlined,
-              color: _caps ? const Color(0xFF9B8FFF) : Colors.white38,
-              size: 16,
+              color: _caps ? AppTheme.primary : AppTheme.textLight,
+              size: 18,
             ),
             flex: 2,
             onTap: () => setState(() => _caps = !_caps),
@@ -220,8 +221,8 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
           _sk(label: '!#1', flex: 2, onTap: () => setState(() => _tab = 2)),
           _sk(label: 'Space', flex: 6, onTap: () => _type(' ')),
           _sk(
-            icon: const Icon(Icons.keyboard_return_rounded,
-                color: Colors.white54, size: 17),
+            icon: Icon(Icons.keyboard_return_rounded,
+                color: AppTheme.textMedium, size: 20),
             flex: 2,
             onTap: () => _type('\n'),
           ),
@@ -232,9 +233,9 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
 
   // ── Key builders ─────────────────────────────────────────────────────────────
 
-  static const double _kh = 44; // key height
-  static const _keyBg = Color(0xFF1C1C38);
-  static const _specBg = Color(0xFF262650);
+  static const double _kh = 48; // slightly taller keys
+  static const _keyBg = Colors.white;
+  static const _specBg = Color(0xFFEDEEF6);
 
   Widget _row(List<Widget> keys) => SizedBox(
         height: _kh,
@@ -254,16 +255,16 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
             borderRadius: BorderRadius.circular(7),
             boxShadow: const [
               BoxShadow(
-                  color: Colors.black54,
-                  offset: Offset(0, 2),
-                  blurRadius: 2)
+                  color: Colors.black12,
+                  offset: Offset(0, 1),
+                  blurRadius: 1)
             ],
           ),
           alignment: Alignment.center,
           child: Text(
             ch,
             style: GoogleFonts.notoSans(
-              color: Colors.white,
+              color: AppTheme.textDark,
               fontSize: fontSize,
               height: 1.2,
             ),
@@ -291,9 +292,9 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
             borderRadius: BorderRadius.circular(7),
             boxShadow: const [
               BoxShadow(
-                  color: Colors.black54,
-                  offset: Offset(0, 2),
-                  blurRadius: 2)
+                  color: Colors.black12,
+                  offset: Offset(0, 1),
+                  blurRadius: 1)
             ],
           ),
           alignment: Alignment.center,
@@ -301,8 +302,8 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
               Text(
                 label ?? '',
                 style: GoogleFonts.poppins(
-                    color: Colors.white60,
-                    fontSize: 12,
+                    color: AppTheme.textMedium,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600),
               ),
         ),
@@ -324,14 +325,14 @@ class _CustomKeyboardState extends State<CustomKeyboard> {
             borderRadius: BorderRadius.circular(7),
             boxShadow: const [
               BoxShadow(
-                  color: Colors.black54,
-                  offset: Offset(0, 2),
-                  blurRadius: 2)
+                  color: Colors.black12,
+                  offset: Offset(0, 1),
+                  blurRadius: 1)
             ],
           ),
           alignment: Alignment.center,
           child:
-              const Icon(Icons.backspace_outlined, color: Colors.white60, size: 18),
+              Icon(Icons.backspace_outlined, color: AppTheme.textMedium, size: 20),
         ),
       ),
     );
