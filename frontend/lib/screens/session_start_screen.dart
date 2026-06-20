@@ -19,7 +19,6 @@ class SessionStartScreen extends StatefulWidget {
 }
 
 class _SessionStartScreenState extends State<SessionStartScreen> {
-  final _nameController = TextEditingController();
   final _patientNameController = TextEditingController();
   final _patientContactController = TextEditingController();
   
@@ -48,7 +47,6 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
     _patientNameController.dispose();
     _patientContactController.dispose();
     super.dispose();
@@ -85,9 +83,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
     }
 
     final session = SessionModel(
-      ashaWorkerName: _nameController.text.isNotEmpty
-          ? _nameController.text
-          : workerName,
+      ashaWorkerName: workerName,
       patientName: _patientNameController.text.trim(),
       patientGender: _selectedGender,
       patientContact: contactText,
@@ -266,21 +262,6 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
 
                     const SizedBox(height: 24),
 
-                    // ── Worker Name ──
-                    _sectionLabel(AppStrings.get('worker_name_label', lang)),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _nameController,
-                      style: GoogleFonts.poppins(color: AppTheme.textDark, fontSize: 15),
-                      decoration: InputDecoration(
-                        hintText: AppStrings.get('worker_name_hint', lang),
-                        prefixIcon: Icon(Icons.person_outline_rounded,
-                            color: AppTheme.primary, size: 20),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
                     // ── Recent Stats Row ──
                     _buildStatsRow(lang),
 
@@ -309,8 +290,6 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
       child: Row(
         children: [
-          Icon(Icons.menu_rounded, color: AppTheme.textDark, size: 26),
-          const SizedBox(width: 12),
           Expanded(
             child: Text(AppStrings.get('asha_triage', lang),
                 style: GoogleFonts.poppins(
@@ -460,7 +439,7 @@ class _SessionStartScreenState extends State<SessionStartScreen> {
   Widget _buildStatsRow(String lang) {
     final today = _stats['today'] ?? 0;
     final critical = _stats['critical'] ?? 0;
-    final normal = (_stats['total'] ?? 0) - critical;
+    final normal = _stats['normal'] ?? 0;
 
     return Row(
       children: [

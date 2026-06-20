@@ -8,6 +8,7 @@ import '../providers/triage_provider.dart';
 import '../services/stt_service.dart';
 import '../utils/app_strings.dart';
 import 'transcription_screen.dart';
+import 'body_tap_screen.dart';
 
 class VoiceScreen extends StatefulWidget {
   const VoiceScreen({super.key});
@@ -99,8 +100,10 @@ class _VoiceScreenState extends State<VoiceScreen>
   }
 
   void _proceed() {
-    if (_liveText.isEmpty) return;
-    context.read<TriageProvider>().updateTranscription(_liveText);
+    final provider = context.read<TriageProvider>();
+    if (_liveText.isEmpty && provider.manualBodyConcepts.isEmpty) return;
+    
+    provider.updateTranscription(_liveText);
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const TranscriptionScreen()),
     );
@@ -116,7 +119,9 @@ class _VoiceScreenState extends State<VoiceScreen>
         _isRecording = false;
         _isCalibrated = false;
       });
-      context.read<TriageProvider>().updateTranscription('');
+      final provider = context.read<TriageProvider>();
+      provider.updateTranscription('');
+      provider.manualBodyConcepts.clear();
     }
   }
 
@@ -182,6 +187,21 @@ class _VoiceScreenState extends State<VoiceScreen>
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  // ===== ADDED: Body-tap mode toggle button =====
+                  IconButton(
+                    icon: const Icon(Icons.accessibility_new, color: AppTheme.primary, size: 28),
+                    tooltip: 'शरीर पर दिखाएं',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const BodyTapScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  // ===== END ADDED =====
                 ],
               ),
             ),
@@ -433,7 +453,7 @@ class _VoiceScreenState extends State<VoiceScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _liveText.isNotEmpty ? _proceed : null,
+                      onPressed: (_liveText.isNotEmpty || context.watch<TriageProvider>().manualBodyConcepts.isNotEmpty) ? _proceed : null,
                       icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                       label: Text(
                         AppStrings.get('continue_btn', lang),

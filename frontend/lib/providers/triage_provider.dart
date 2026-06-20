@@ -22,6 +22,7 @@ class TriageProvider extends ChangeNotifier {
   
   // Dynamic Confirmation state
   List<DetectedConcept> _detectedConcepts = [];
+  List<DetectedConcept> _manualBodyConcepts = [];
   List<DetectedConcept> _conceptsNeedingConfirmation = [];
   int _currentConfirmationStep = 0;
   final List<bool?> _confirmationAnswers = [];
@@ -35,6 +36,7 @@ class TriageProvider extends ChangeNotifier {
   List<bool?>   get confirmationAnswers => _confirmationAnswers;
   String        get selectedLanguage  => _selectedLanguage;
   List<DetectedConcept> get detectedConcepts => _detectedConcepts;
+  List<DetectedConcept> get manualBodyConcepts => _manualBodyConcepts;
   List<DetectedConcept> get conceptsNeedingConfirmation => _conceptsNeedingConfirmation;
   bool          get servicesReady     => _servicesReady;
 
@@ -63,6 +65,11 @@ class TriageProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addManualBodyConcepts(List<DetectedConcept> concepts) {
+    _manualBodyConcepts.addAll(concepts);
+    notifyListeners();
+  }
+
   List<String> get confirmationQuestions {
     final questions = _conceptsNeedingConfirmation.map((c) => c.getQuestionForLang(_selectedLanguage)).toList();
     questions.add(AppStrings.get('safety_net_q', _selectedLanguage)); // Mandatory safety net
@@ -74,6 +81,7 @@ class TriageProvider extends ChangeNotifier {
     _transcribedText = '';
     _currentResult = null;
     _detectedConcepts = [];
+    _manualBodyConcepts = [];
     _conceptsNeedingConfirmation = [];
     _currentConfirmationStep = 0;
     _confirmationAnswers.clear();
@@ -113,6 +121,13 @@ class TriageProvider extends ChangeNotifier {
         _currentSession?.symptomDuration?.name ?? 'TODAY',
       );
       
+      // Merge with manual body concepts avoiding duplicates
+      for (var manualConcept in _manualBodyConcepts) {
+        if (!_detectedConcepts.any((c) => c.conceptKey == manualConcept.conceptKey)) {
+          _detectedConcepts.add(manualConcept);
+        }
+      }
+      
       _conceptsNeedingConfirmation = [];
       for (final concept in _detectedConcepts) {
         if (!concept.requiresConfirmation) {
@@ -134,6 +149,24 @@ class TriageProvider extends ChangeNotifier {
     }
     
     _isProcessing = false;
+    notifyListeners();
+  }
+
+  void setDetectedConcepts(List<DetectedConcept> concepts) {
+    _detectedConcepts = concepts;
+    _conceptsNeedingConfirmation = [];
+    for (final concept in _detectedConcepts) {
+      if (!concept.requiresConfirmation) {
+        concept.confirmed = true;
+      } else {
+        _conceptsNeedingConfirmation.add(concept);
+      }
+    }
+    _currentConfirmationStep = 0;
+    _confirmationAnswers.clear();
+    for (int i = 0; i < confirmationQuestions.length; i++) {
+      _confirmationAnswers.add(null);
+    }
     notifyListeners();
   }
 
@@ -248,6 +281,7 @@ class TriageProvider extends ChangeNotifier {
     _isRecording = false;
     _isProcessing = false;
     _detectedConcepts = [];
+    _manualBodyConcepts = [];
     _conceptsNeedingConfirmation = [];
     _currentConfirmationStep = 0;
     _confirmationAnswers.clear();

@@ -155,21 +155,19 @@ class SttService {
       _audioStreamSubscription = audioStream.listen((rawBytes) async {
         if (_recognizer == null) return;
 
-        // Pipe through noise suppressor (speech frames pass unchanged).
-        final Uint8List cleanedBytes = _noiseSuppressor.process(rawBytes);
-
-        // Update calibration banner.
-        if (_noiseSuppressor.isCalibrated && !isCalibratedNotifier.value) {
+        // Bypassing software noise suppressor since hardware DSP is now enabled!
+        // We no longer zero-fill frames; Vosk gets the raw hardware-suppressed feed.
+        if (!isCalibratedNotifier.value) {
           isCalibratedNotifier.value = true;
         }
 
         if (_processingChunk) {
           // Vosk is busy — park this chunk (overwrite any older pending one).
-          _pendingChunk = cleanedBytes;
+          _pendingChunk = rawBytes;
           return;
         }
 
-        await _processChunk(cleanedBytes);
+        await _processChunk(rawBytes);
       }, onError: (e) {
         debugPrint('[VOSK] Audio stream error: $e');
         onError?.call('Audio stream error: $e');
@@ -226,9 +224,12 @@ class SttService {
       sampleRate: 16000,
       numChannels: 1,
       bitRate: 256000,
+      autoGain: true,
+      echoCancel: true,
+      noiseSuppress: true,
     );
     final stream = await _audioRecorder.startStream(config);
-    debugPrint('[AUDIO] Audio capture started (PCM-16, 16 kHz, mono, 256 kbps).');
+    debugPrint('[AUDIO] Audio capture started with noise suppression enabled.');
     return stream;
   }
 

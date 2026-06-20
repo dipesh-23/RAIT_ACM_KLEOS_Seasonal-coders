@@ -112,8 +112,10 @@ class DatabaseService {
     final referrals = Sqflite.firstIntValue(referralResult) ?? 0;
 
     final criticalResult = await db.rawQuery(
-        "SELECT COUNT(*) as count FROM sessions WHERE triage_level = 'RED'");
+        "SELECT COUNT(*) as count FROM sessions WHERE triage_level = 'RED' AND started_at LIKE '$todayStr%'");
     final critical = Sqflite.firstIntValue(criticalResult) ?? 0;
+    
+    final normal = todayCount - critical;
 
     return {
       'total': total,
@@ -121,6 +123,7 @@ class DatabaseService {
       'this_month': thisMonth,
       'referrals': referrals,
       'critical': critical,
+      'normal': normal,
     };
   }
 
